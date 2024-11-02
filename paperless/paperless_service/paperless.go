@@ -1,40 +1,36 @@
-package main
+package paperless_service
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"image/jpeg"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
-	"slices"
+	"paperless-gpt/internal/config"
+	"paperless-gpt/internal/logging"
+	"paperless-gpt/paperless/paperless_model"
 	"strings"
-	"sync"
+)
 
-	"github.com/gen2brain/go-fitz"
-	"golang.org/x/sync/errgroup"
+var (
+	log = logging.InitLogger(config.LogLevel)
 )
 
 // PaperlessClient struct to interact with the Paperless-NGX API
 type PaperlessClient struct {
-	BaseURL     string
-	APIToken    string
-	HTTPClient  *http.Client
-	CacheFolder string
+	BaseURL    string
+	APIToken   string
+	HTTPClient *http.Client
 }
 
 // NewPaperlessClient creates a new instance of PaperlessClient with a default HTTP client
 func NewPaperlessClient(baseURL, apiToken string) *PaperlessClient {
-	cacheFolder := os.Getenv("PAPERLESS_GPT_CACHE_DIR")
 
 	return &PaperlessClient{
-		BaseURL:     strings.TrimRight(baseURL, "/"),
-		APIToken:    apiToken,
-		HTTPClient:  &http.Client{},
-		CacheFolder: cacheFolder,
+		BaseURL:    strings.TrimRight(baseURL, "/"),
+		APIToken:   apiToken,
+		HTTPClient: &http.Client{},
 	}
 }
 
@@ -105,7 +101,7 @@ func (client *PaperlessClient) GetAllTags(ctx context.Context) (map[string]int, 
 }
 
 // GetDocumentsByTags retrieves documents that match the specified tags
-func (client *PaperlessClient) GetDocumentsByTags(ctx context.Context, tags []string, pageSize int) ([]Document, error) {
+func (client *PaperlessClient) GetDocumentsByTags(ctx context.Context, tags []string, pageSize int) ([]paperless_model.Document, error) {
 	tagQueries := make([]string, len(tags))
 	for i, tag := range tags {
 		tagQueries[i] = fmt.Sprintf("tag:%s", tag)
@@ -124,7 +120,7 @@ func (client *PaperlessClient) GetDocumentsByTags(ctx context.Context, tags []st
 		return nil, fmt.Errorf("error searching documents: %d, %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var documentsResponse GetDocumentsApiResponse
+	var documentsResponse paperless_model.GetDocumentsApiResponse
 	err = json.NewDecoder(resp.Body).Decode(&documentsResponse)
 	if err != nil {
 		return nil, err
@@ -135,7 +131,7 @@ func (client *PaperlessClient) GetDocumentsByTags(ctx context.Context, tags []st
 		return nil, err
 	}
 
-	documents := make([]Document, 0, len(documentsResponse.Results))
+	documents := make([]paperless_model.Document, 0, len(documentsResponse.Results))
 	for _, result := range documentsResponse.Results {
 		tagNames := make([]string, len(result.Tags))
 		for i, resultTagID := range result.Tags {
@@ -147,7 +143,7 @@ func (client *PaperlessClient) GetDocumentsByTags(ctx context.Context, tags []st
 			}
 		}
 
-		documents = append(documents, Document{
+		documents = append(documents, paperless_model.Document{
 			ID:      result.ID,
 			Title:   result.Title,
 			Content: result.Content,
@@ -159,7 +155,7 @@ func (client *PaperlessClient) GetDocumentsByTags(ctx context.Context, tags []st
 }
 
 // DownloadPDF downloads the PDF file of the specified document
-func (client *PaperlessClient) DownloadPDF(ctx context.Context, document Document) ([]byte, error) {
+func (client *PaperlessClient) DownloadPDF(ctx context.Context, document paperless_model.Document) ([]byte, error) {
 	path := fmt.Sprintf("api/documents/%d/download/", document.ID)
 	resp, err := client.Do(ctx, "GET", path, nil)
 	if err != nil {
@@ -175,28 +171,28 @@ func (client *PaperlessClient) DownloadPDF(ctx context.Context, document Documen
 	return io.ReadAll(resp.Body)
 }
 
-func (client *PaperlessClient) GetDocument(ctx context.Context, documentID int) (Document, error) {
+func (client *PaperlessClient) GetDocument(ctx context.Context, documentID int) (paperless_model.Document, error) {
 	path := fmt.Sprintf("api/documents/%d/", documentID)
 	resp, err := client.Do(ctx, "GET", path, nil)
 	if err != nil {
-		return Document{}, err
+		return paperless_model.Document{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return Document{}, fmt.Errorf("error fetching document %d: %d, %s", documentID, resp.StatusCode, string(bodyBytes))
+		return paperless_model.Document{}, fmt.Errorf("error fetching document %d: %d, %s", documentID, resp.StatusCode, string(bodyBytes))
 	}
 
-	var documentResponse GetDocumentApiResponse
+	var documentResponse paperless_model.GetDocumentApiResponse
 	err = json.NewDecoder(resp.Body).Decode(&documentResponse)
 	if err != nil {
-		return Document{}, err
+		return paperless_model.Document{}, err
 	}
 
 	allTags, err := client.GetAllTags(ctx)
 	if err != nil {
-		return Document{}, err
+		return paperless_model.Document{}, err
 	}
 
 	tagNames := make([]string, len(documentResponse.Tags))
@@ -209,7 +205,7 @@ func (client *PaperlessClient) GetDocument(ctx context.Context, documentID int) 
 		}
 	}
 
-	return Document{
+	return paperless_model.Document{
 		ID:      documentResponse.ID,
 		Title:   documentResponse.Title,
 		Content: documentResponse.Content,
@@ -218,7 +214,7 @@ func (client *PaperlessClient) GetDocument(ctx context.Context, documentID int) 
 }
 
 // UpdateDocuments updates the specified documents with suggested changes
-func (client *PaperlessClient) UpdateDocuments(ctx context.Context, documents []DocumentSuggestion) error {
+func (client *PaperlessClient) UpdateDocuments(ctx context.Context, documents []paperless_model.DocumentSuggestion) error {
 	// Fetch all available tags
 	availableTags, err := client.GetAllTags(ctx)
 	if err != nil {
@@ -250,20 +246,9 @@ func (client *PaperlessClient) UpdateDocuments(ctx context.Context, documents []
 		updatedFields := make(map[string]interface{})
 		newTags := []int{}
 
-		tags := document.SuggestedTags
-		if len(tags) == 0 {
-			tags = document.OriginalDocument.Tags
-		}
-		// remove autoTag to prevent infinite loop (even if it is in the original tags)
-		tags = removeTagFromList(tags, autoTag)
-
 		// Map suggested tag names to IDs
-		for _, tagName := range tags {
+		for _, tagName := range document.SuggestedTags {
 			if tagID, exists := availableTags[tagName]; exists {
-				// Skip the tag that we are filtering
-				if tagName == manualTag {
-					continue
-				}
 				newTags = append(newTags, tagID)
 			} else {
 				log.Errorf("Suggested tag '%s' does not exist in paperless-ngx, skipping.", tagName)
@@ -331,141 +316,14 @@ func (client *PaperlessClient) UpdateDocuments(ctx context.Context, documents []
 	return nil
 }
 
-// DownloadDocumentAsImages downloads the PDF file of the specified document and converts it to images
-func (client *PaperlessClient) DownloadDocumentAsImages(ctx context.Context, documentId int) ([]string, error) {
-	// Create a directory named after the document ID
-	docDir := filepath.Join(client.GetCacheFolder(), fmt.Sprintf("/document-%d", documentId))
-	if _, err := os.Stat(docDir); os.IsNotExist(err) {
-		err = os.MkdirAll(docDir, 0755)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Check if images already exist
-	var imagePaths []string
-	for n := 0; ; n++ {
-		imagePath := filepath.Join(docDir, fmt.Sprintf("page%03d.jpg", n))
-		if _, err := os.Stat(imagePath); os.IsNotExist(err) {
-			break
-		}
-		imagePaths = append(imagePaths, imagePath)
-	}
-
-	// If images exist, return them
-	if len(imagePaths) > 0 {
-		return imagePaths, nil
-	}
-
-	// Proceed with downloading and converting the document to images
-	path := fmt.Sprintf("api/documents/%d/download/", documentId)
-	resp, err := client.Do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error downloading document %d: %d, %s", documentId, resp.StatusCode, string(bodyBytes))
-	}
-
-	pdfData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	tmpFile, err := os.CreateTemp("", "document-*.pdf")
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(tmpFile.Name())
-
-	_, err = tmpFile.Write(pdfData)
-	if err != nil {
-		return nil, err
-	}
-	tmpFile.Close()
-
-	doc, err := fitz.New(tmpFile.Name())
-	if err != nil {
-		return nil, err
-	}
-	defer doc.Close()
-
-	var mu sync.Mutex
-	var g errgroup.Group
-
-	for n := 0; n < doc.NumPage(); n++ {
-		n := n // capture loop variable
-		g.Go(func() error {
-			mu.Lock()
-			// I assume the libmupdf library is not thread-safe
-			img, err := doc.Image(n)
-			mu.Unlock()
-			if err != nil {
-				return err
-			}
-
-			imagePath := filepath.Join(docDir, fmt.Sprintf("page%03d.jpg", n))
-			f, err := os.Create(imagePath)
-			if err != nil {
-				return err
-			}
-
-			err = jpeg.Encode(f, img, &jpeg.Options{Quality: jpeg.DefaultQuality})
-			if err != nil {
-				f.Close()
-				return err
-			}
-			f.Close()
-
-			// Verify the JPEG file
-			file, err := os.Open(imagePath)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			_, err = jpeg.Decode(file)
-			if err != nil {
-				return fmt.Errorf("invalid JPEG file: %s", imagePath)
-			}
-
-			mu.Lock()
-			imagePaths = append(imagePaths, imagePath)
-			mu.Unlock()
-
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-
-	// sort the image paths to ensure they are in order
-	slices.Sort(imagePaths)
-
-	return imagePaths, nil
-}
-
-// GetCacheFolder returns the cache folder for the PaperlessClient
-func (client *PaperlessClient) GetCacheFolder() string {
-	if client.CacheFolder == "" {
-		client.CacheFolder = filepath.Join(os.TempDir(), "paperless-gpt")
-	}
-	return client.CacheFolder
-}
-
 // urlEncode encodes a string for safe URL usage
 func urlEncode(s string) string {
 	return strings.ReplaceAll(s, " ", "+")
 }
 
 // instantiateCorrespondent creates a new Correspondent object with default values
-func instantiateCorrespondent(name string) Correspondent {
-	return Correspondent{
+func instantiateCorrespondent(name string) paperless_model.Correspondent {
+	return paperless_model.Correspondent{
 		Name:              name,
 		MatchingAlgorithm: 0,
 		Match:             "",
@@ -475,7 +333,7 @@ func instantiateCorrespondent(name string) Correspondent {
 }
 
 // CreateCorrespondent creates a new correspondent in Paperless-NGX
-func (client *PaperlessClient) CreateCorrespondent(ctx context.Context, correspondent Correspondent) (int, error) {
+func (client *PaperlessClient) CreateCorrespondent(ctx context.Context, correspondent paperless_model.Correspondent) (int, error) {
 	url := "api/correspondents/"
 
 	// Marshal the correspondent data to JSON
@@ -544,4 +402,15 @@ func (client *PaperlessClient) GetAllCorrespondents(ctx context.Context) (map[st
 	}
 
 	return correspondentIDMapping, nil
+}
+
+// RemoveTagFromList removes a specific tag from a list of tags
+func RemoveTagFromList(tags []string, tagToRemove string) []string {
+	filteredTags := []string{}
+	for _, tag := range tags {
+		if tag != tagToRemove {
+			filteredTags = append(filteredTags, tag)
+		}
+	}
+	return filteredTags
 }

@@ -1,24 +1,25 @@
-package main
+package service
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"paperless-gpt/internal/config"
+	"paperless-gpt/paperless/paperless_model"
 	"strings"
 	"sync"
+
+	"paperless-gpt/internal/model"
 
 	"github.com/tmc/langchaingo/llms"
 )
 
-// getSuggestedCorrespondent generates a suggested correspondent for a document using the LLM
+// getSuggestedCorrespondent generates a suggested correspondent for a document using the LlmClient
 func (app *App) getSuggestedCorrespondent(ctx context.Context, content string, suggestedTitle string, availableCorrespondents []string, correspondentBlackList []string) (string, error) {
-	likelyLanguage := getLikelyLanguage()
-
-	templateMutex.RLock()
-	defer templateMutex.RUnlock()
+	likelyLanguage := config.GetLikelyLanguage()
 
 	var promptBuffer bytes.Buffer
-	err := correspondentTemplate.Execute(&promptBuffer, map[string]interface{}{
+	err := config.CorrespondentPrompt.Execute(&promptBuffer, map[string]interface{}{
 		"Language":                likelyLanguage,
 		"AvailableCorrespondents": availableCorrespondents,
 		"BlackList":               correspondentBlackList,
@@ -32,7 +33,7 @@ func (app *App) getSuggestedCorrespondent(ctx context.Context, content string, s
 	prompt := promptBuffer.String()
 	log.Debugf("Correspondent suggestion prompt: %s", prompt)
 
-	completion, err := app.LLM.GenerateContent(ctx, []llms.MessageContent{
+	completion, err := app.LlmClient.GenerateContent(ctx, []llms.MessageContent{
 		{
 			Parts: []llms.ContentPart{
 				llms.TextContent{
@@ -43,22 +44,19 @@ func (app *App) getSuggestedCorrespondent(ctx context.Context, content string, s
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("error getting response from LLM: %v", err)
+		return "", fmt.Errorf("error getting response from LlmClient: %v", err)
 	}
 
 	response := strings.TrimSpace(completion.Choices[0].Content)
 	return response, nil
 }
 
-// getSuggestedTags generates suggested tags for a document using the LLM
+// getSuggestedTags generates suggested tags for a document using the LlmClient
 func (app *App) getSuggestedTags(ctx context.Context, content string, suggestedTitle string, availableTags []string) ([]string, error) {
-	likelyLanguage := getLikelyLanguage()
-
-	templateMutex.RLock()
-	defer templateMutex.RUnlock()
+	likelyLanguage := config.GetLikelyLanguage()
 
 	var promptBuffer bytes.Buffer
-	err := tagTemplate.Execute(&promptBuffer, map[string]interface{}{
+	err := config.TagPrompt.Execute(&promptBuffer, map[string]interface{}{
 		"Language":      likelyLanguage,
 		"AvailableTags": availableTags,
 		"Title":         suggestedTitle,
@@ -71,7 +69,7 @@ func (app *App) getSuggestedTags(ctx context.Context, content string, suggestedT
 	prompt := promptBuffer.String()
 	log.Debugf("Tag suggestion prompt: %s", prompt)
 
-	completion, err := app.LLM.GenerateContent(ctx, []llms.MessageContent{
+	completion, err := app.LlmClient.GenerateContent(ctx, []llms.MessageContent{
 		{
 			Parts: []llms.ContentPart{
 				llms.TextContent{
@@ -82,7 +80,7 @@ func (app *App) getSuggestedTags(ctx context.Context, content string, suggestedT
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error getting response from LLM: %v", err)
+		return nil, fmt.Errorf("error getting response from LlmClient: %v", err)
 	}
 
 	response := strings.TrimSpace(completion.Choices[0].Content)
@@ -105,15 +103,12 @@ func (app *App) getSuggestedTags(ctx context.Context, content string, suggestedT
 	return filteredTags, nil
 }
 
-// getSuggestedTitle generates a suggested title for a document using the LLM
+// getSuggestedTitle generates a suggested title for a document using the LlmClient
 func (app *App) getSuggestedTitle(ctx context.Context, content string) (string, error) {
-	likelyLanguage := getLikelyLanguage()
-
-	templateMutex.RLock()
-	defer templateMutex.RUnlock()
+	likelyLanguage := config.GetLikelyLanguage()
 
 	var promptBuffer bytes.Buffer
-	err := titleTemplate.Execute(&promptBuffer, map[string]interface{}{
+	err := config.TitlePrompt.Execute(&promptBuffer, map[string]interface{}{
 		"Language": likelyLanguage,
 		"Content":  content,
 	})
@@ -125,7 +120,7 @@ func (app *App) getSuggestedTitle(ctx context.Context, content string) (string, 
 
 	log.Debugf("Title suggestion prompt: %s", prompt)
 
-	completion, err := app.LLM.GenerateContent(ctx, []llms.MessageContent{
+	completion, err := app.LlmClient.GenerateContent(ctx, []llms.MessageContent{
 		{
 			Parts: []llms.ContentPart{
 				llms.TextContent{
@@ -136,16 +131,16 @@ func (app *App) getSuggestedTitle(ctx context.Context, content string) (string, 
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("error getting response from LLM: %v", err)
+		return "", fmt.Errorf("error getting response from LlmClient: %v", err)
 	}
 
 	return strings.TrimSpace(strings.Trim(completion.Choices[0].Content, "\"")), nil
 }
 
 // generateDocumentSuggestions generates suggestions for a set of documents
-func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionRequest GenerateSuggestionsRequest) ([]DocumentSuggestion, error) {
+func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionRequest model.GenerateSuggestionsRequest) ([]paperless_model.DocumentSuggestion, error) {
 	// Fetch all available tags from paperless-ngx
-	availableTagsMap, err := app.Client.GetAllTags(ctx)
+	availableTagsMap, err := app.PaperlessClient.GetAllTags(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch available tags: %v", err)
 	}
@@ -153,14 +148,11 @@ func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionReque
 	// Prepare a list of tag names
 	availableTagNames := make([]string, 0, len(availableTagsMap))
 	for tagName := range availableTagsMap {
-		if tagName == manualTag {
-			continue
-		}
 		availableTagNames = append(availableTagNames, tagName)
 	}
 
 	// Prepare a list of document correspodents
-	availableCorrespondentsMap, err := app.Client.GetAllCorrespondents(ctx)
+	availableCorrespondentsMap, err := app.PaperlessClient.GetAllCorrespondents(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch available correspondents: %v", err)
 	}
@@ -172,7 +164,7 @@ func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionReque
 	}
 
 	documents := suggestionRequest.Documents
-	documentSuggestions := []DocumentSuggestion{}
+	documentSuggestions := []paperless_model.DocumentSuggestion{}
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -180,7 +172,7 @@ func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionReque
 
 	for i := range documents {
 		wg.Add(1)
-		go func(doc Document) {
+		go func(doc paperless_model.Document) {
 			defer wg.Done()
 			documentID := doc.ID
 			log.Printf("Processing Document ID %d...", documentID)
@@ -217,7 +209,7 @@ func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionReque
 			}
 
 			if suggestionRequest.GenerateCorrespondents {
-				suggestedCorrespondent, err = app.getSuggestedCorrespondent(ctx, content, suggestedTitle, availableCorrespondentNames, correspondentBlackList)
+				suggestedCorrespondent, err = app.getSuggestedCorrespondent(ctx, content, suggestedTitle, availableCorrespondentNames, config.CorrespondentBlackList)
 				if err != nil {
 					mu.Lock()
 					errorsList = append(errorsList, fmt.Errorf("Document %d: %v", documentID, err))
@@ -229,7 +221,7 @@ func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionReque
 			}
 
 			mu.Lock()
-			suggestion := DocumentSuggestion{
+			suggestion := paperless_model.DocumentSuggestion{
 				ID:               documentID,
 				OriginalDocument: doc,
 			}
@@ -245,8 +237,6 @@ func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionReque
 			if suggestionRequest.GenerateTags {
 				log.Printf("Suggested tags for document %d: %v", documentID, suggestedTags)
 				suggestion.SuggestedTags = suggestedTags
-			} else {
-				suggestion.SuggestedTags = removeTagFromList(doc.Tags, manualTag)
 			}
 
 			// Correspondents

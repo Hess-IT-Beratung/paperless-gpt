@@ -1,5 +1,5 @@
 # Stage 1: Build the Go binary
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -23,7 +23,7 @@ COPY . .
 RUN go mod tidy
 
 # Build the Go binary with the musl build tag
-RUN go build -tags musl -o paperless-gpt .
+RUN go build -tags musl -o paperless-gpt ./cmd/paperless-gpt
 
 # Stage 2: Create a lightweight image with the Go binary and frontend
 FROM alpine:3.18

@@ -1,8 +1,45 @@
-package main
+package paperless_model
 
 import (
 	"time"
 )
+
+// DocumentSuggestion is the response payload for /generate-suggestions endpoint and the request payload for /update-documents endpoint (as an array)
+type DocumentSuggestion struct {
+	ID                     int      `json:"id"`
+	OriginalDocument       Document `json:"original_document"`
+	SuggestedTitle         string   `json:"suggested_title,omitempty"`
+	SuggestedTags          []string `json:"suggested_tags,omitempty"`
+	SuggestedContent       string   `json:"suggested_content,omitempty"`
+	SuggestedCorrespondent string   `json:"suggested_correspondent,omitempty"`
+}
+
+type Correspondent struct {
+	Name              string `json:"name"`
+	MatchingAlgorithm int    `json:"matching_algorithm"`
+	Match             string `json:"match"`
+	IsInsensitive     bool   `json:"is_insensitive"`
+	Owner             *int   `json:"owner"`
+	SetPermissions    struct {
+		View struct {
+			Users  []int `json:"users"`
+			Groups []int `json:"groups"`
+		} `json:"view"`
+		Change struct {
+			Users  []int `json:"users"`
+			Groups []int `json:"groups"`
+		} `json:"change"`
+	} `json:"set_permissions"`
+}
+
+// Document is a stripped down version of the document object from paperless-ngx.
+// Response payload for /documents endpoint and part of request payload for /generate-suggestions endpoint
+type Document struct {
+	ID      int      `json:"id"`
+	Title   string   `json:"title"`
+	Content string   `json:"content"`
+	Tags    []string `json:"tags"`
+}
 
 type GetDocumentsApiResponse struct {
 	Count    int         `json:"count"`
@@ -54,49 +91,4 @@ type GetDocumentApiResponse struct {
 	Owner               int           `json:"owner"`
 	UserCanChange       bool          `json:"user_can_change"`
 	Notes               []interface{} `json:"notes"`
-}
-
-// Document is a stripped down version of the document object from paperless-ngx.
-// Response payload for /documents endpoint and part of request payload for /generate-suggestions endpoint
-type Document struct {
-	ID      int      `json:"id"`
-	Title   string   `json:"title"`
-	Content string   `json:"content"`
-	Tags    []string `json:"tags"`
-}
-
-// GenerateSuggestionsRequest is the request payload for generating suggestions for /generate-suggestions endpoint
-type GenerateSuggestionsRequest struct {
-	Documents              []Document `json:"documents"`
-	GenerateTitles         bool       `json:"generate_titles,omitempty"`
-	GenerateTags           bool       `json:"generate_tags,omitempty"`
-	GenerateCorrespondents bool       `json:"generate_correspondents,omitempty"`
-}
-
-// DocumentSuggestion is the response payload for /generate-suggestions endpoint and the request payload for /update-documents endpoint (as an array)
-type DocumentSuggestion struct {
-	ID                     int      `json:"id"`
-	OriginalDocument       Document `json:"original_document"`
-	SuggestedTitle         string   `json:"suggested_title,omitempty"`
-	SuggestedTags          []string `json:"suggested_tags,omitempty"`
-	SuggestedContent       string   `json:"suggested_content,omitempty"`
-	SuggestedCorrespondent string   `json:"suggested_correspondent,omitempty"`
-}
-
-type Correspondent struct {
-	Name              string `json:"name"`
-	MatchingAlgorithm int    `json:"matching_algorithm"`
-	Match             string `json:"match"`
-	IsInsensitive     bool   `json:"is_insensitive"`
-	Owner             *int   `json:"owner"`
-	SetPermissions    struct {
-		View struct {
-			Users  []int `json:"users"`
-			Groups []int `json:"groups"`
-		} `json:"view"`
-		Change struct {
-			Users  []int `json:"users"`
-			Groups []int `json:"groups"`
-		} `json:"change"`
-	} `json:"set_permissions"`
 }
