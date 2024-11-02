@@ -151,6 +151,8 @@ func main() {
 		}
 	}()
 
+	// Block forever
+	select {}
 }
 
 func initLogger() {
