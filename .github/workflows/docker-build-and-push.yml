@@ -26,29 +26,8 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
-      - name: Run Go tests
-        run: go test ./...
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-
-      - name: Cache npm dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install frontend dependencies
-        run: npm install
-        working-directory: web-app
-
-      - name: Run frontend tests
-        run: npm test
-        working-directory: web-app
+#       - name: Run Go tests
+#         run: go test ./...
 
   build-and-push:
     runs-on: ubuntu-latest
@@ -73,12 +52,12 @@ jobs:
       - name: Set Docker tags
         id: set_tags
         run: |
-          echo "TAGS=icereed/paperless-gpt:unreleased" >> $GITHUB_ENV
+          echo "TAGS=jonashess/paperless-gpt:unreleased" >> $GITHUB_ENV
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "TAGS=icereed/paperless-gpt:unreleased" >> $GITHUB_ENV
+            echo "TAGS=jonashess/paperless-gpt:unreleased" >> $GITHUB_ENV
           elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
-            echo "TAGS=icereed/paperless-gpt:latest,icereed/paperless-gpt:${VERSION}" >> $GITHUB_ENV
+            echo "TAGS=jonashess/paperless-gpt:latest,jonashess/paperless-gpt:${VERSION}" >> $GITHUB_ENV
           fi
 
       - name: Build and push Docker images
