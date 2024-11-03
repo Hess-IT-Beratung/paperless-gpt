@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"paperless-gpt/internal/config"
 	"paperless-gpt/paperless/paperless_model"
+	"sort"
 	"strings"
 
 	"github.com/tmc/langchaingo/llms"
@@ -32,6 +33,19 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 	prompt := promptBuffer.String()
 	log.Debugf("Json suggestion prompt: %s", prompt)
 
+	// Check cache
+	app.cacheMutex.Lock()
+	if element, found := app.cache[prompt]; found {
+		app.cacheList.MoveToFront(element)
+		app.cacheMutex.Unlock()
+		log.Warnf("Cache hit for prompt of document %d", originalDocument.ID)
+		return unmarshalSuggestion(element.Value.(*CacheEntry).value, originalDocument)
+	} else {
+		log.Debugf("Cache miss for prompt of document %d", originalDocument.ID)
+	}
+	app.cacheMutex.Unlock()
+
+	// Generate content
 	completion, err := app.LlmClient.GenerateContent(ctx, []llms.MessageContent{
 		{
 			Parts: []llms.ContentPart{
@@ -47,17 +61,57 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 	}
 
 	jsonStr := strings.TrimSpace(completion.Choices[0].Content)
+	log.Infof("Json suggestion for document %d: %s", originalDocument.ID, jsonStr)
 
-	log.Debugf("Json suggestion: %s", jsonStr)
+	// Store in cache
+	app.cacheMutex.Lock()
+	if app.cacheList.Len() >= maxCacheSize {
+		// Evict the least recently used entry
+		evictElement := app.cacheList.Back()
+		if evictElement != nil {
+			app.cacheList.Remove(evictElement)
+			delete(app.cache, evictElement.Value.(*CacheEntry).key)
+		}
+	}
+	newEntry := &CacheEntry{key: prompt, value: jsonStr}
+	element := app.cacheList.PushFront(newEntry)
+	app.cache[prompt] = element
+	log.Debugf("Added prompt to cache of document %d", originalDocument.ID)
+	app.cacheMutex.Unlock()
+
+	return unmarshalSuggestion(jsonStr, originalDocument)
+}
+
+func unmarshalSuggestion(jsonStr string, originalDocument paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
+
+	jsonStr = strings.TrimSpace(jsonStr)
+	if jsonStr == "" {
+		return nil, fmt.Errorf("error: json string is empty or blank")
+	}
+
+	// the json string might begin with invalid characters (Markdown). Remove them until the first '{'
+	for i, c := range jsonStr {
+		if c == '{' {
+			jsonStr = jsonStr[i:]
+			break
+		}
+	}
+
+	// the json string might end with invalid characters. Remove them until the last '}'
+	for i := len(jsonStr) - 1; i >= 0; i-- {
+		if jsonStr[i] == '}' {
+			jsonStr = jsonStr[:i+1]
+			break
+		}
+	}
 
 	var suggestion paperless_model.DocumentSuggestion
-	err = json.Unmarshal([]byte(jsonStr), &suggestion)
+	err := json.Unmarshal([]byte(jsonStr), &suggestion)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling json: %v", err)
 	}
 	suggestion.DocumentID = originalDocument.ID
 	suggestion.OriginalDocument = originalDocument
-
 	return &suggestion, nil
 }
 
@@ -101,6 +155,11 @@ func (app *App) generateDocumentSuggestion(ctx context.Context, doc paperless_mo
 		content = content[:5000]
 	}
 
+	// Sort the names for consistency (Important for caching)
+	sort.Strings(availableTagNames)
+	sort.Strings(availableCorrespondentNames)
+	sort.Strings(availableDocumentTypeNames)
+
 	// Generate json suggestion
 	if jsonSuggestion, err := app.getSuggestedJson(ctx, content, availableTagNames, availableCorrespondentNames, config.CorrespondentBlackList, availableDocumentTypeNames, doc); err != nil {
 		return nil, fmt.Errorf("error generating json for document %d: %v", documentID, err)
@@ -108,4 +167,9 @@ func (app *App) generateDocumentSuggestion(ctx context.Context, doc paperless_mo
 		return jsonSuggestion, nil
 	}
 
+}
+
+func sortStrings(names []string) []string {
+	sort.Strings(names)
+	return names
 }

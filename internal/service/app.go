@@ -1,6 +1,7 @@
 package service
 
 import (
+	"container/list"
 	"context"
 	_ "embed"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"paperless-gpt/internal/logging"
 	"paperless-gpt/paperless/paperless_service"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tmc/langchaingo/llms"
@@ -23,10 +25,21 @@ var (
 	log = logging.InitLogger(config.LogLevel)
 )
 
-// App struct to hold dependencies
+const maxCacheSize = 100 // Define the maximum size of the cache
+
+// CacheEntry represents a single cache entry
+type CacheEntry struct {
+	key   string
+	value string
+}
+
+// App struct to hold dependencies and cache
 type App struct {
 	PaperlessClient *paperless_service.PaperlessClient
 	LlmClient       llms.Model
+	cache           map[string]*list.Element
+	cacheList       *list.List
+	cacheMutex      sync.Mutex
 }
 
 func Start() {
@@ -44,6 +57,9 @@ func Start() {
 	app := &App{
 		PaperlessClient: client,
 		LlmClient:       llm,
+		cache:           make(map[string]*list.Element),
+		cacheList:       list.New(),
+		cacheMutex:      sync.Mutex{},
 	}
 
 	minBackoffDuration := 10 * time.Second
