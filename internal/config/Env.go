@@ -17,6 +17,8 @@ var (
 	LlmModel               = os.Getenv("LLM_MODEL")
 	LogLevel               = strings.ToLower(os.Getenv("LOG_LEVEL"))
 	CorrespondentBlackList = strings.Split(os.Getenv("CORRESPONDENT_BLACK_LIST"), ",")
+
+	ForbiddenTags = []string{"paperless-gpt-auto"}
 )
 
 func init() {

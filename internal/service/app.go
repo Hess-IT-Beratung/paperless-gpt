@@ -15,7 +15,6 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 
 	"paperless-gpt/internal/config"
-	"paperless-gpt/internal/model"
 )
 
 var (
@@ -88,24 +87,24 @@ func (app *App) processAutoTagDocuments() (int, error) {
 
 	log.Debugf("Found at least %d remaining documents with tag %s", len(documents), config.AutoTag)
 
-	suggestionRequest := model.GenerateSuggestionsRequest{
-		Documents:              documents,
-		GenerateTitles:         true,
-		GenerateTags:           true,
-		GenerateCorrespondents: true,
-	}
-
-	suggestions, err := app.generateDocumentSuggestions(ctx, suggestionRequest)
+	// Generate suggestion for the document
+	suggestion, err := app.generateDocumentSuggestion(ctx, documents[0])
 	if err != nil {
-		return 0, fmt.Errorf("error generating suggestions: %w", err)
+		return 0, fmt.Errorf("error generating suggestion: %w", err)
 	}
 
-	err = app.PaperlessClient.UpdateDocuments(ctx, suggestions)
+	// Remove forbidden tags
+	for _, tag := range config.ForbiddenTags {
+		suggestion.Tags = paperless_service.RemoveTagFromList(suggestion.Tags, tag)
+	}
+
+	// Update document with suggestion
+	err = app.PaperlessClient.UpdateDocument(ctx, *suggestion)
 	if err != nil {
 		return 0, fmt.Errorf("error updating documents: %w", err)
 	}
 
-	return len(documents), nil
+	return 1, nil
 }
 
 // createLLM creates the appropriate LlmClient client based on the provider

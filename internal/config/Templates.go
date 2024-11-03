@@ -10,19 +10,11 @@ import (
 )
 
 var (
-	//go:embed prompts/correspondent_prompt.tmpl
-	correspondentTemplate string
 
-	//go:embed prompts/tag_prompt.tmpl
-	tagTemplate string
+	//go:embed prompts/json_prompt.tmpl
+	jsonTemplate string
 
-	//go:embed prompts/title_prompt.tmpl
-	titleTemplate string
-
-	// Templates
-	TitlePrompt         *template.Template
-	TagPrompt           *template.Template
-	CorrespondentPrompt *template.Template
+	JsonPrompt *template.Template
 )
 
 // loadTemplates loads the title and tag templates from files or uses default templates
@@ -43,49 +35,18 @@ func init() {
 		log.Fatalf("Failed to create prompts directory: %v", err)
 	}
 
-	// Load title template
-	titleTemplatePath := filepath.Join(promptsDir, "title_prompt.tmpl")
-	titleTemplateContent, err := os.ReadFile(titleTemplatePath)
+	// Load json template
+	jsonTemplatePath := filepath.Join(promptsDir, "json_prompt.tmpl")
+	jsonTemplateContent, err := os.ReadFile(jsonTemplatePath)
 	if err != nil {
-		log.Errorf("Could not read %s, using default template: %v", titleTemplatePath, err)
-		titleTemplateContent = []byte(titleTemplate)
-		if err := os.WriteFile(titleTemplatePath, titleTemplateContent, os.ModePerm); err != nil {
-			log.Fatalf("Failed to write default title template to disk: %v", err)
+		log.Errorf("Could not read %s, using default template: %v", jsonTemplatePath, err)
+		jsonTemplateContent = []byte(jsonTemplate)
+		if err := os.WriteFile(jsonTemplatePath, jsonTemplateContent, os.ModePerm); err != nil {
+			log.Fatalf("Failed to write default json template to disk: %v", err)
 		}
 	}
-	TitlePrompt, err = template.New("title").Funcs(sprig.FuncMap()).Parse(string(titleTemplateContent))
+	JsonPrompt, err = template.New("json").Funcs(sprig.FuncMap()).Parse(string(jsonTemplateContent))
 	if err != nil {
-		log.Fatalf("Failed to parse title template: %v", err)
+		log.Fatalf("Failed to parse json template: %v", err)
 	}
-
-	// Load tag template
-	tagTemplatePath := filepath.Join(promptsDir, "tag_prompt.tmpl")
-	tagTemplateContent, err := os.ReadFile(tagTemplatePath)
-	if err != nil {
-		log.Errorf("Could not read %s, using default template: %v", tagTemplatePath, err)
-		tagTemplateContent = []byte(tagTemplate)
-		if err := os.WriteFile(tagTemplatePath, tagTemplateContent, os.ModePerm); err != nil {
-			log.Fatalf("Failed to write default tag template to disk: %v", err)
-		}
-	}
-	TagPrompt, err = template.New("tag").Funcs(sprig.FuncMap()).Parse(string(tagTemplateContent))
-	if err != nil {
-		log.Fatalf("Failed to parse tag template: %v", err)
-	}
-
-	// Load correspondent template
-	correspondentTemplatePath := filepath.Join(promptsDir, "correspondent_prompt.tmpl")
-	correspondentTemplateContent, err := os.ReadFile(correspondentTemplatePath)
-	if err != nil {
-		log.Errorf("Could not read %s, using default template: %v", correspondentTemplatePath, err)
-		correspondentTemplateContent = []byte(correspondentTemplate)
-		if err := os.WriteFile(correspondentTemplatePath, correspondentTemplateContent, os.ModePerm); err != nil {
-			log.Fatalf("Failed to write default correspondent template to disk: %v", err)
-		}
-	}
-	CorrespondentPrompt, err = template.New("correspondent").Funcs(sprig.FuncMap()).Parse(string(correspondentTemplateContent))
-	if err != nil {
-		log.Fatalf("Failed to parse correspondent template: %v", err)
-	}
-
 }

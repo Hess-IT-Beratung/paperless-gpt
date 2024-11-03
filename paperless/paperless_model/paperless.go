@@ -4,14 +4,33 @@ import (
 	"time"
 )
 
+type DocumentType struct {
+	Name              string `json:"name"`
+	MatchingAlgorithm int    `json:"matching_algorithm"`
+	Match             string `json:"match"`
+	IsInsensitive     bool   `json:"is_insensitive"`
+	Owner             *int   `json:"owner"`
+	SetPermissions    struct {
+		View struct {
+			Users  []int `json:"users"`
+			Groups []int `json:"groups"`
+		} `json:"view"`
+		Change struct {
+			Users  []int `json:"users"`
+			Groups []int `json:"groups"`
+		} `json:"change"`
+	} `json:"set_permissions"`
+}
+
 // DocumentSuggestion is the response payload for /generate-suggestions endpoint and the request payload for /update-documents endpoint (as an array)
 type DocumentSuggestion struct {
-	ID                     int      `json:"id"`
-	OriginalDocument       Document `json:"original_document"`
-	SuggestedTitle         string   `json:"suggested_title,omitempty"`
-	SuggestedTags          []string `json:"suggested_tags,omitempty"`
-	SuggestedContent       string   `json:"suggested_content,omitempty"`
-	SuggestedCorrespondent string   `json:"suggested_correspondent,omitempty"`
+	DocumentID       int      `json:"id"`
+	OriginalDocument Document `json:"original_document"`
+	Correspondent    *string  `json:"correspondent,omitempty"`
+	Title            *string  `json:"title,omitempty"`
+	Date             *string  `json:"created_date,omitempty"`
+	Tags             []string `json:"tags"`
+	DocumentType     *string  `json:"document_type,omitempty"`
 }
 
 type Correspondent struct {
