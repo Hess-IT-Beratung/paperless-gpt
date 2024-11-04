@@ -107,7 +107,7 @@ func (paperlessClient *PaperlessClient) GetDocumentsByTags(ctx context.Context, 
 		tagQueries[i] = fmt.Sprintf("tag:%s", tag)
 	}
 	searchQuery := strings.Join(tagQueries, " ")
-	path := fmt.Sprintf("api/documents/?query=%s&page_size=%d", urlEncode(searchQuery), pageSize)
+	path := fmt.Sprintf("api/documents/?query=%s&page_size=%d&ordering=added", urlEncode(searchQuery), pageSize)
 
 	resp, err := paperlessClient.Do(ctx, "GET", path, nil)
 	if err != nil {
@@ -221,10 +221,12 @@ func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, sugg
 	updatedFields := make(map[string]interface{})
 
 	// Tags
-	if suggestedTagIds, tagError := getSuggestedTags(ctx, paperlessClient, suggestion.Tags); tagError != nil {
-		return tagError
-	} else {
-		updatedFields["tags"] = suggestedTagIds
+	if suggestion.Tags != nil {
+		if suggestedTagIds, tagError := getSuggestedTags(ctx, paperlessClient, *suggestion.Tags); tagError != nil {
+			return tagError
+		} else {
+			updatedFields["tags"] = suggestedTagIds
+		}
 	}
 
 	// Correspondent
@@ -253,6 +255,11 @@ func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, sugg
 	// Suggested Title
 	if suggestion.Title != nil {
 		updatedFields["title"] = getSuggestedTitle(*suggestion.Title, suggestion.OriginalDocument.Title, documentID)
+	}
+
+	// Content
+	if suggestion.Content != nil {
+		updatedFields["content"] = *suggestion.Content
 	}
 
 	if updateError := paperlessClient.updateDocument(ctx, updatedFields, documentID); updateError != nil {
@@ -543,7 +550,6 @@ func (paperlessClient *PaperlessClient) GetAllCorrespondents(ctx context.Context
 	return correspondentIDMapping, nil
 }
 
-// RemoveTagFromList removes a specific tag from a list of tags
 func RemoveTagFromList(tags []string, tagToRemove string) []string {
 	filteredTags := []string{}
 	for _, tag := range tags {

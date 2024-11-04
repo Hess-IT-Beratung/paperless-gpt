@@ -24,13 +24,14 @@ type DocumentType struct {
 
 // DocumentSuggestion is the response payload for /generate-suggestions endpoint and the request payload for /update-documents endpoint (as an array)
 type DocumentSuggestion struct {
-	DocumentID       int      `json:"id"`
-	OriginalDocument Document `json:"original_document"`
-	Correspondent    *string  `json:"correspondent,omitempty"`
-	Title            *string  `json:"title,omitempty"`
-	Date             *string  `json:"created_date,omitempty"`
-	Tags             []string `json:"tags"`
-	DocumentType     *string  `json:"document_type,omitempty"`
+	DocumentID       int       `json:"id"`
+	OriginalDocument Document  `json:"original_document"`
+	Correspondent    *string   `json:"correspondent,omitempty"`
+	Title            *string   `json:"title,omitempty"`
+	Date             *string   `json:"created_date,omitempty"`
+	Tags             *[]string `json:"tags"`
+	DocumentType     *string   `json:"document_type,omitempty"`
+	Content          *string   `json:"content,omitempty"`
 }
 
 type Correspondent struct {

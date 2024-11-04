@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"paperless-gpt/internal/config"
+	"paperless-gpt/internal/ocr"
 	"paperless-gpt/paperless/paperless_model"
+	paperless_service "paperless-gpt/paperless/paperless_service"
 	"sort"
 	"strings"
 
@@ -112,6 +114,59 @@ func unmarshalSuggestion(jsonStr string, originalDocument paperless_model.Docume
 	}
 	suggestion.DocumentID = originalDocument.ID
 	suggestion.OriginalDocument = originalDocument
+	return &suggestion, nil
+}
+
+func (app *App) getOcrDocumentSuggestion(ctx context.Context, doc paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
+	var suggestion paperless_model.DocumentSuggestion
+	//
+	//// Fetch all available tags from paperless-ngx
+	//allAvailableTagIDMap, err := app.PaperlessClient.GetAllTags(ctx)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to fetch available tags: %v", err)
+	//}
+	//
+	//// create a second map and flip the keys and values
+	//allAvailableTagNameMap := make([]string, 0, len(allAvailableTagIDMap))
+	//for tagName := range allAvailableTagIDMap {
+	//	allAvailableTagNameMap = append(allAvailableTagNameMap, tagName)
+	//}
+	//
+	//var existingDocumentTagNames []string = make([]string, len(doc.Tags))
+	//for i, tagIDString := range doc.Tags {
+	//	tagIDInt, err := strconv.Atoi(tagIDString)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("error converting tagID to int: %v", err)
+	//	}
+	//	existingDocumentTagNames[i] = allAvailableTagNameMap[tagIDInt]
+	//}
+	suggestedTags := append(doc.Tags, config.AutoTag)
+	suggestedTags = paperless_service.RemoveTagFromList(suggestedTags, config.OcrTag)
+	suggestion.Tags = &(suggestedTags)
+
+	// Prepare for generating suggestions
+	documentID := doc.ID
+	//content := doc.Content
+	//if len(content) > 5000 {
+	//	content = content[:5000]
+	//}
+
+	docBytes, err := app.PaperlessClient.DownloadPDF(ctx, doc)
+	if err != nil {
+		return nil, fmt.Errorf("error downloading pdf for document %d: %v", documentID, err)
+	}
+
+	// Process the document
+	extractedText, err := ocr.ProcessDocument(docBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error processing document %d: %v", documentID, err)
+	}
+
+	log.Debugf("Extracted text for document %d: %s", documentID, extractedText)
+
+	suggestion.DocumentID = documentID
+	suggestion.OriginalDocument = doc
+	suggestion.Content = &extractedText
 	return &suggestion, nil
 }
 

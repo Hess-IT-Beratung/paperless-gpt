@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"paperless-gpt/internal/logging"
+	"paperless-gpt/paperless/paperless_model"
 	"paperless-gpt/paperless/paperless_service"
 	"strings"
 	"sync"
@@ -62,19 +63,51 @@ func Start() {
 		cacheMutex:      sync.Mutex{},
 	}
 
+	var wg sync.WaitGroup
+	errorChan := make(chan error, 2) // Buffered channel to capture errors
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		if err := handAutoTags(app, app.generateDocumentSuggestion, config.AutoTag); err != nil {
+			errorChan <- err
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if err := handAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag); err != nil {
+			errorChan <- err
+		}
+	}()
+
+	wg.Wait()
+	close(errorChan) // Close the channel after all goroutines have completed
+
+	// Handle errors
+	for err := range errorChan {
+		if err != nil {
+			log.Errorf("Error occurred: %v", err)
+		}
+	}
+
+}
+
+func handAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string) error {
 	minBackoffDuration := 10 * time.Second
 	maxBackoffDuration := time.Hour
 	pollingInterval := 10 * time.Second
 
 	backoffDuration := minBackoffDuration
 	for {
-		processedCount, err := app.processAutoTagDocuments()
+		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName)
 		if err != nil {
-			log.Errorf("Error in processAutoTagDocuments: %v", err)
+			log.Errorf("Error in handAutoTags: %v", err)
 			time.Sleep(backoffDuration)
 			backoffDuration *= 2 // Exponential backoff
 			if backoffDuration > maxBackoffDuration {
-				log.Warnf("Repeated errors in processAutoTagDocuments detected. Setting backoff to %v", maxBackoffDuration)
+				log.Warnf("Repeated errors in handAutoTags detected. Setting backoff to %v", maxBackoffDuration)
 				backoffDuration = maxBackoffDuration
 			}
 		} else {
@@ -87,31 +120,33 @@ func Start() {
 	}
 }
 
-// processAutoTagDocuments handles the background auto-tagging of documents
-func (app *App) processAutoTagDocuments() (int, error) {
+// SuggestionFunc defines a function type that takes a document and returns a suggestion or error
+type SuggestionFunc func(ctx context.Context, document paperless_model.Document) (*paperless_model.DocumentSuggestion, error)
+
+// handles the background auto-tagging of documents
+func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string) (int, error) {
 	ctx := context.Background()
 
-	documents, err := app.PaperlessClient.GetDocumentsByTags(ctx, []string{config.AutoTag}, 1)
+	documents, err := app.PaperlessClient.GetDocumentsByTags(ctx, []string{tagName}, 1)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching documents with autoTag: %w", err)
 	}
 
 	if len(documents) == 0 {
-		log.Debugf("No documents with tag %s found", config.AutoTag)
+		log.Debugf("No documents with tag %s found", tagName)
 		return 0, nil // No documents to process
 	}
 
-	log.Debugf("Found at least %d remaining documents with tag %s", len(documents), config.AutoTag)
+	log.Debugf("Found at least %d remaining documents with tag %s", len(documents), tagName)
 
-	// Generate suggestion for the document
-	suggestion, err := app.generateDocumentSuggestion(ctx, documents[0])
+	// Generate suggestion for the document using the provided function pointer
+	suggestion, err := suggestionFunc(ctx, documents[0])
 	if err != nil {
 		return 0, fmt.Errorf("error generating suggestion: %w", err)
 	}
 
-	// Remove forbidden tags
-	for _, tag := range config.ForbiddenTags {
-		suggestion.Tags = paperless_service.RemoveTagFromList(suggestion.Tags, tag)
+	if suggestion.Tags != nil {
+		*suggestion.Tags = paperless_service.RemoveTagFromList(*suggestion.Tags, tagName)
 	}
 
 	// Update document with suggestion

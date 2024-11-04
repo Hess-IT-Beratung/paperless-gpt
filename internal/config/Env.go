@@ -13,12 +13,16 @@ var (
 	PaperlessAPIToken      = os.Getenv("PAPERLESS_API_TOKEN")
 	OpenaiAPIKey           = os.Getenv("OPENAI_API_KEY")
 	AutoTag                = "paperless-gpt-auto"
+	OcrTag                 = "paperless-gpt-ocr"
 	LlmProvider            = os.Getenv("LLM_PROVIDER")
 	LlmModel               = os.Getenv("LLM_MODEL")
 	LogLevel               = strings.ToLower(os.Getenv("LOG_LEVEL"))
 	CorrespondentBlackList = strings.Split(os.Getenv("CORRESPONDENT_BLACK_LIST"), ",")
 
 	ForbiddenTags = []string{"paperless-gpt-auto"}
+
+	Region = os.Getenv("AWS_REGION")
+	Bucket = os.Getenv("AWS_OCR_BUCKET_NAME")
 )
 
 func init() {
@@ -45,6 +49,13 @@ func validateEnvVars() {
 
 	if LlmProvider == "openai" && OpenaiAPIKey == "" {
 		log.Fatal("Please set the OPENAI_API_KEY environment variable for OpenAI provider.")
+	}
+
+	if Region == "" {
+		log.Fatal("missing environment variable: AWS_REGION")
+	}
+	if Bucket == "" {
+		log.Fatal("missing environment variable: AWS_OCR_BUCKET_NAME")
 	}
 }
 
