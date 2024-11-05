@@ -53,8 +53,8 @@ type Correspondent struct {
 }
 
 type CustomField struct {
-	Value string `json:"value"`
-	Field int    `json:"field"`
+	Value *string `json:"value"`
+	Field int     `json:"field"`
 }
 
 type Document struct {

@@ -304,10 +304,12 @@ func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, sugg
 	}
 	// add all  existing CustomFields
 	for _, customField := range suggestion.OriginalDocument.CustomFields {
-		updatedFields["custom_fields"] = append(updatedFields["custom_fields"].([]map[string]interface{}), map[string]interface{}{
-			"field": customField.Field,
-			"value": customField.Value,
-		})
+		if customField.Field != autoTaggedFieldID {
+			updatedFields["custom_fields"] = append(updatedFields["custom_fields"].([]map[string]interface{}), map[string]interface{}{
+				"field": customField.Field,
+				"value": customField.Value,
+			})
+		}
 	}
 
 	if updateError := paperlessClient.updateDocument(ctx, updatedFields, documentID); updateError != nil {
