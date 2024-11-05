@@ -41,6 +41,8 @@ COPY --from=builder /app/paperless-gpt .
 # Ensure the binary has execute permissions
 RUN chmod +x /app/paperless-gpt
 
+RUN mkdir -p /app/config/prompts
+
 ENV PROMPTS_DIR="/app/config/prompts"
 
 # Command to run the binary
