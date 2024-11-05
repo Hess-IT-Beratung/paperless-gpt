@@ -12,14 +12,12 @@ var (
 	PaperlessBaseURL       = os.Getenv("PAPERLESS_BASE_URL")
 	PaperlessAPIToken      = os.Getenv("PAPERLESS_API_TOKEN")
 	OpenaiAPIKey           = os.Getenv("OPENAI_API_KEY")
-	AutoTag                = "paperless-gpt-auto"
-	OcrTag                 = "paperless-gpt-ocr"
+	AutoTag                = os.Getenv("PAPERLESS_AUTO_TAG")
+	OcrTag                 = os.Getenv("PAPERLESS_OCR_TAG")
 	LlmProvider            = os.Getenv("LLM_PROVIDER")
 	LlmModel               = os.Getenv("LLM_MODEL")
 	LogLevel               = strings.ToLower(os.Getenv("LOG_LEVEL"))
 	CorrespondentBlackList = strings.Split(os.Getenv("CORRESPONDENT_BLACK_LIST"), ",")
-
-	ForbiddenTags = []string{"paperless-gpt-auto"}
 
 	Region = os.Getenv("AWS_REGION")
 	Bucket = os.Getenv("AWS_OCR_BUCKET_NAME")
@@ -63,6 +61,13 @@ func validateEnvVars() {
 	}
 	if Bucket == "" {
 		log.Fatal("missing environment variable: AWS_OCR_BUCKET_NAME")
+	}
+
+	if AutoTag == "" {
+		AutoTag = "paperless-gpt-auto"
+	}
+	if OcrTag == "" {
+		OcrTag = "paperless-gpt-ocr"
 	}
 }
 

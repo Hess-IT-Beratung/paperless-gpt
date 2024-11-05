@@ -11,6 +11,7 @@ import (
 	"paperless-gpt/internal/logging"
 	"paperless-gpt/paperless/paperless_model"
 	"strings"
+	"time"
 )
 
 var (
@@ -143,11 +144,21 @@ func (paperlessClient *PaperlessClient) GetDocumentsByTags(ctx context.Context, 
 			}
 		}
 
+		customFields := make([]paperless_model.CustomField, len(result.CustomFields))
+		for i, customField := range result.CustomFields {
+			customFields[i] = paperless_model.CustomField{
+				Value: customField.Value,
+				Field: customField.Field,
+			}
+		}
+
 		documents = append(documents, paperless_model.Document{
-			ID:      result.ID,
-			Title:   result.Title,
-			Content: result.Content,
-			Tags:    tagNames,
+			ID:               result.ID,
+			Title:            result.Title,
+			Content:          result.Content,
+			Tags:             tagNames,
+			OriginalFileName: result.OriginalFileName,
+			CustomFields:     customFields,
 		})
 	}
 
@@ -205,16 +216,26 @@ func (paperlessClient *PaperlessClient) GetDocument(ctx context.Context, documen
 		}
 	}
 
+	customFields := make([]paperless_model.CustomField, len(documentResponse.CustomFields))
+	for i, customField := range documentResponse.CustomFields {
+		customFields[i] = paperless_model.CustomField{
+			Value: customField.Value,
+			Field: customField.Field,
+		}
+	}
+
 	return paperless_model.Document{
-		ID:      documentResponse.ID,
-		Title:   documentResponse.Title,
-		Content: documentResponse.Content,
-		Tags:    tagNames,
+		ID:               documentResponse.ID,
+		Title:            documentResponse.Title,
+		Content:          documentResponse.Content,
+		Tags:             tagNames,
+		OriginalFileName: documentResponse.OriginalFileName,
+		CustomFields:     customFields,
 	}, nil
 }
 
 // UpdateDocuments updates the specified documents with suggested changes
-func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, suggestion paperless_model.DocumentSuggestion) error {
+func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, suggestion paperless_model.DocumentSuggestion, customFieldName string) error {
 
 	documentID := suggestion.DocumentID
 
@@ -260,6 +281,33 @@ func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, sugg
 	// Content
 	if suggestion.Content != nil {
 		updatedFields["content"] = *suggestion.Content
+	}
+
+	// Fetch all custom fields
+	customFields, err := paperlessClient.GetAllCustomFields(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Find the ID of the custom field with the name "auto_tagged"
+	autoTaggedFieldID, exists := customFields[customFieldName]
+	if !exists {
+		return fmt.Errorf("a custom field with the name: '%s' does not exist in paperless-ngx and must be created with the type: 'DATE' ", customFieldName)
+	}
+
+	currentDate := time.Now().Format("2006-01-02")
+	updatedFields["custom_fields"] = []map[string]interface{}{
+		{
+			"field": autoTaggedFieldID, // Replace with the actual field ID
+			"value": currentDate,
+		},
+	}
+	// add all  existing CustomFields
+	for _, customField := range suggestion.OriginalDocument.CustomFields {
+		updatedFields["custom_fields"] = append(updatedFields["custom_fields"].([]map[string]interface{}), map[string]interface{}{
+			"field": customField.Field,
+			"value": customField.Value,
+		})
 	}
 
 	if updateError := paperlessClient.updateDocument(ctx, updatedFields, documentID); updateError != nil {
@@ -558,4 +606,38 @@ func RemoveTagFromList(tags []string, tagToRemove string) []string {
 		}
 	}
 	return filteredTags
+}
+
+func (paperlessClient *PaperlessClient) GetAllCustomFields(ctx context.Context) (map[string]int, error) {
+	customFieldIDMapping := make(map[string]int)
+	path := "api/custom_fields/?page_size=100000"
+
+	resp, err := paperlessClient.Do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("error fetching custom fields: %d, %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var customFieldsResponse struct {
+		Results []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"results"`
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&customFieldsResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, customField := range customFieldsResponse.Results {
+		customFieldIDMapping[customField.Name] = customField.ID
+	}
+
+	return customFieldIDMapping, nil
 }

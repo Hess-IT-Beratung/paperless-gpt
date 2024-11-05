@@ -70,14 +70,14 @@ func Start() {
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.generateDocumentSuggestion, config.AutoTag); err != nil {
+		if err := handleAutoTags(app, app.generateDocumentSuggestion, config.AutoTag, "auto_tagged"); err != nil {
 			errorChan <- err
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag); err != nil {
+		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag, "ocr_textract"); err != nil {
 			errorChan <- err
 		}
 	}()
@@ -94,14 +94,14 @@ func Start() {
 
 }
 
-func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string) error {
+func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, customFieldName string) error {
 	minBackoffDuration := 10 * time.Second
 	maxBackoffDuration := time.Hour
 	pollingInterval := 10 * time.Second
 
 	backoffDuration := minBackoffDuration
 	for {
-		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName)
+		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName, customFieldName)
 		if err != nil {
 			log.Errorf("Error in handleAutoTags: %v", err)
 			time.Sleep(backoffDuration)
@@ -124,7 +124,7 @@ func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string) err
 type SuggestionFunc func(ctx context.Context, document paperless_model.Document) (*paperless_model.DocumentSuggestion, error)
 
 // handles the background auto-tagging of documents
-func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string) (int, error) {
+func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string, customFieldName string) (int, error) {
 	ctx := context.Background()
 
 	documents, err := app.PaperlessClient.GetDocumentsByTags(ctx, []string{tagName}, 1)
@@ -148,7 +148,7 @@ func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName s
 	*suggestion.Tags = paperless_service.RemoveTagFromList(*suggestion.Tags, tagName)
 
 	// Update document with suggestion
-	err = app.PaperlessClient.UpdateDocument(ctx, *suggestion)
+	err = app.PaperlessClient.UpdateDocument(ctx, *suggestion, customFieldName)
 	if err != nil {
 		return 0, fmt.Errorf("error updating documents: %w", err)
 	}

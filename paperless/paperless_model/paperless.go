@@ -52,13 +52,18 @@ type Correspondent struct {
 	} `json:"set_permissions"`
 }
 
-// Document is a stripped down version of the document object from paperless-ngx.
-// Response payload for /documents endpoint and part of request payload for /generate-suggestions endpoint
+type CustomField struct {
+	Value string `json:"value"`
+	Field int    `json:"field"`
+}
+
 type Document struct {
-	ID      int      `json:"id"`
-	Title   string   `json:"title"`
-	Content string   `json:"content"`
-	Tags    []string `json:"tags"`
+	ID               int           `json:"id"`
+	Title            string        `json:"title"`
+	Content          string        `json:"content"`
+	Tags             []string      `json:"tags"`
+	OriginalFileName string        `json:"original_file_name"`
+	CustomFields     []CustomField `json:"custom_fields"`
 }
 
 type GetDocumentsApiResponse struct {
@@ -84,6 +89,7 @@ type GetDocumentsApiResponse struct {
 		Owner               int           `json:"owner"`
 		UserCanChange       bool          `json:"user_can_change"`
 		Notes               []interface{} `json:"notes"`
+		CustomFields        []CustomField `json:"custom_fields"`
 		SearchHit           struct {
 			Score          float64 `json:"score"`
 			Highlights     string  `json:"highlights"`
@@ -111,4 +117,5 @@ type GetDocumentApiResponse struct {
 	Owner               int           `json:"owner"`
 	UserCanChange       bool          `json:"user_can_change"`
 	Notes               []interface{} `json:"notes"`
+	CustomFields        []CustomField `json:"custom_fields"`
 }
