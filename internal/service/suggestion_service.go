@@ -21,12 +21,18 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 
 	var promptBuffer bytes.Buffer
 	err := config.JsonPrompt.Execute(&promptBuffer, map[string]interface{}{
-		"Language":                likelyLanguage,
-		"AvailableTags":           availableTags,
-		"AvailableCorrespondents": availableCorrespondents,
-		"BlackList":               correspondentBlackList,
-		"Content":                 content,
-		"AvailableDocumentTypes":  availableDocumentTypeNames,
+		"Language":                 likelyLanguage,
+		"AvailableTags":            availableTags,
+		"AvailableCorrespondents":  availableCorrespondents,
+		"BlackList":                correspondentBlackList,
+		"Content":                  content,
+		"AvailableDocumentTypes":   availableDocumentTypeNames,
+		"PromptPreamble":           config.PromptPreamble,
+		"TitleExplanation":         config.TitleExplanation,
+		"TagsExplanation":          config.TagsExplanation,
+		"DocumentTypeExplanation":  config.DocumentTypeExplanation,
+		"CorrespondentExplanation": config.CorrespondentExplanation,
+		"PromptPostamble":          config.PromptPostamble,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error executing json template: %v", err)
@@ -114,6 +120,11 @@ func unmarshalSuggestion(jsonStr string, originalDocument paperless_model.Docume
 	}
 	suggestion.DocumentID = originalDocument.ID
 	suggestion.OriginalDocument = originalDocument
+
+	if suggestion.Tags == nil {
+		suggestion.Tags = &[]string{}
+	}
+
 	return &suggestion, nil
 }
 
@@ -157,7 +168,7 @@ func (app *App) getOcrDocumentSuggestion(ctx context.Context, doc paperless_mode
 	}
 
 	// Process the document
-	extractedText, err := ocr.ProcessDocument(docBytes)
+	extractedText, err := ocr.ProcessDocumentOcr(docBytes, doc.ID)
 	if err != nil {
 		return nil, fmt.Errorf("error processing document %d: %v", documentID, err)
 	}
@@ -211,6 +222,9 @@ func (app *App) generateDocumentSuggestion(ctx context.Context, doc paperless_mo
 	}
 
 	// Sort the names for consistency (Important for caching)
+	availableTagNames = paperless_service.RemoveTagFromList(availableTagNames, config.OcrTag)
+	availableTagNames = paperless_service.RemoveTagFromList(availableTagNames, config.AutoTag)
+
 	sort.Strings(availableTagNames)
 	sort.Strings(availableCorrespondentNames)
 	sort.Strings(availableDocumentTypeNames)

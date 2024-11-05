@@ -70,14 +70,14 @@ func Start() {
 
 	go func() {
 		defer wg.Done()
-		if err := handAutoTags(app, app.generateDocumentSuggestion, config.AutoTag); err != nil {
+		if err := handleAutoTags(app, app.generateDocumentSuggestion, config.AutoTag); err != nil {
 			errorChan <- err
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := handAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag); err != nil {
+		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag); err != nil {
 			errorChan <- err
 		}
 	}()
@@ -94,7 +94,7 @@ func Start() {
 
 }
 
-func handAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string) error {
+func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string) error {
 	minBackoffDuration := 10 * time.Second
 	maxBackoffDuration := time.Hour
 	pollingInterval := 10 * time.Second
@@ -103,11 +103,11 @@ func handAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string) error
 	for {
 		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName)
 		if err != nil {
-			log.Errorf("Error in handAutoTags: %v", err)
+			log.Errorf("Error in handleAutoTags: %v", err)
 			time.Sleep(backoffDuration)
 			backoffDuration *= 2 // Exponential backoff
 			if backoffDuration > maxBackoffDuration {
-				log.Warnf("Repeated errors in handAutoTags detected. Setting backoff to %v", maxBackoffDuration)
+				log.Warnf("Repeated errors in handleAutoTags detected. Setting backoff to %v", maxBackoffDuration)
 				backoffDuration = maxBackoffDuration
 			}
 		} else {
@@ -145,9 +145,7 @@ func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName s
 		return 0, fmt.Errorf("error generating suggestion: %w", err)
 	}
 
-	if suggestion.Tags != nil {
-		*suggestion.Tags = paperless_service.RemoveTagFromList(*suggestion.Tags, tagName)
-	}
+	*suggestion.Tags = paperless_service.RemoveTagFromList(*suggestion.Tags, tagName)
 
 	// Update document with suggestion
 	err = app.PaperlessClient.UpdateDocument(ctx, *suggestion)

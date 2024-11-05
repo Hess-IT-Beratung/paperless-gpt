@@ -1,0 +1,91 @@
+I will provide you with the content of a document that has been partially read by OCR (so it may contain errors, missing character and may not be complete).
+Your task is to answer with a JSON object that contains the following fields, that best describes the given document content. Respond only with the json, without any additional information!
+Do not apply any formatting to the json. Your response should be a single line of json.
+
+- title: The title of the document. If you can't find a suitable title, you can respond with "No Title Found".
+- correspondent: The correspondent that is most relevant to the document. If you can't find a suitable correspondent, you can respond with "Unknown".
+- document_type: The type of the document that best describes the content.
+- tags: A list of tags that describe the document. If you can't find any suitable tags, you can respond with an empty list.
+- created_date: The date on which the document was most likely written. If you can't find a suitable date, you can respond leave it empty.
+
+# Example JSON object:
+{
+  "correspondent": "my correspondent",
+  "document_type": "my document type",
+  "title": "my title",
+  "created_date": "2021-01-01"
+  "tags": ["tag1", "tag2"],
+}
+
+# Correspondent Field:
+The correspondent that is most relevant to the document.
+Correspondents are the senders of documents that reach you. In the other direction, correspondents are the recipients of documents that you send.
+We can imagine correspondents as virtual drawers in which all documents of a person or company are stored. The goal is to find all the documents assigned to a specific correspondent.
+Try to suggest a correspondent, either from the example list or come up with a new correspondent.
+Try to avoid any legal or financial suffixes like "GmbH" or "AG" in the correspondent name. For example use "Microsoft" instead of "Microsoft Ireland Operations Limited" or "Amazon" instead of "Amazon EU S.a.r.l.".
+If you can't find a suitable correspondent, you can respond with "Unknown".
+
+Example Correspondents:
+{{.AvailableCorrespondents | join ", "}}
+
+List of Correspondents with Blacklisted Names. Please avoid these correspondents or variations of their names:
+{{.BlackList | join ", "}}
+
+# Title Field:
+The title should be concise and descriptive, but it should also be unique and not too generic.
+It should be easy to understand and should give a good idea of what the document is about. It should also be easy to search for in the future.
+It is ok to me a bit longer if it helps to make the title more descriptive.
+If it is an invoice, try to include what was purchased or the service that was provided.
+The title should NOT contain the correspondent, or a variation or abbreviation of the correspondent! Leave the correspondent out of the title!
+Include in the title the most likely type of document (e.g., invoice, contract, statement) if possible.
+If you can't find a suitable title, you can respond with "No Title Found".
+Don't just copy the first sentence of the content as the title. Try to be as descriptive as possible and include any relevant information that you can find in the content.
+If the document is about money, try to include the amount in the title if possible.
+
+
+# Document_Type Field:
+A document type is a category that describes the content of the document. It helps to organize and search for documents in the future.
+You should choose the most specific document type that fits the content of the document. Try to be as accurate as possible.
+If a document fits multiple types, choose the one that best describes the main content of the document.
+Find the most likely type of the document. Do not leave this field empty! If you can't find a suitable document type, you can create a new one.
+
+Example Document Types:
+{{.AvailableDocumentTypes | join ", "}}
+
+
+# Tags Field:
+A list of tags that describe the document. If you can't find any suitable tags, you can respond with an empty list.
+Be very selective and only choose the most relevant tags since too many tags will make the document less discoverable. You should not select more than 4 tags.
+You must select tags from the list of available tags that I will provide. Only select tags from the provided list.
+
+Available Tags:
+{{.AvailableTags | join ", "}}
+
+Here is a explanation of what some tags are used for. Try very hard to find the tags that best describe the document.
+
+Arbeit & Beruf: For documents related to employment, work contracts, pay slips, or any work-related correspondence.
+Ausweise & Dokumente: For identity documents, passports, driver’s licenses, or official identification records.
+Bank & Finanzen: For bank statements, credit card statements, financial reports, and any other banking-related documents.
+Bildung & Qualifikationen: For certificates, diplomas, transcripts, or documents related to education and training.
+Fahrzeug & Transport: For vehicle registrations, purchase agreements, maintenance records, or public transport passes.
+Familie & Partnerschaft: For family-related documents, such as marriage certificates, birth certificates, and guardianship papers.
+Gesundheit & Krankenkasse: For health records, insurance cards, medical reports, and correspondence with health insurance providers.
+paperless-gpt: This tag should never be used!
+paperless-gpt-auto:  This tag should never be used!
+Rechnungen & Belege: For invoices, receipts, and any proof of payment for purchases or services.
+Rechtliches & Anwaltliches: For legal documents, contracts, court records, or correspondence with attorneys.
+Reisen & Urlaube: For travel-related documents, including tickets, hotel reservations, visas, and itineraries, but also for travel insurance.
+Sonstiges & Persönliches: For miscellaneous or personal documents that don’t fit other categories.
+Steuern & Finanzamt: For tax documents, such as tax returns, assessments, and correspondence with tax authorities.
+Versicherung & Vorsorge: For insurance policies, pension documents, or records related to financial planning.
+Verträge & Abonnements: For service contracts, subscription agreements, and recurring service agreements.
+Wohnung & Immobilien: For rental agreements, mortgage documents, property deeds, and other real estate-related documents. Also for utility bills like electricity, water, or gas bills.
+
+# Created_Date Field:
+The date on which the document was most likely written. If you can't find a suitable date, you can leave it empty.
+All dates should be in the format "YYYY-MM-DD".
+
+
+Here is the content of the document is likely in {{.Language}}.
+Document Content:
+{{.Content}}

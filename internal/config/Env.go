@@ -23,6 +23,13 @@ var (
 
 	Region = os.Getenv("AWS_REGION")
 	Bucket = os.Getenv("AWS_OCR_BUCKET_NAME")
+
+	PromptPreamble           = os.Getenv("PROMPT_PREAMBLE")
+	TitleExplanation         = os.Getenv("PROMPT_TITLE_EXPLANATION")
+	TagsExplanation          = os.Getenv("PROMPT_TAGS_EXPLANATION")
+	DocumentTypeExplanation  = os.Getenv("PROMPT_DOCUMENT_TYPE_EXPLANATION")
+	CorrespondentExplanation = os.Getenv("PROMPT_CORRESPONDENT_EXPLANATION")
+	PromptPostamble          = os.Getenv("PROMPT_POSTAMBLE")
 )
 
 func init() {

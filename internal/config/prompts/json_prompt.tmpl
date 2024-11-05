@@ -1,14 +1,10 @@
-I will provide you with the content of a document that has been partially read by OCR (so it may contain errors, missing character and may not be complete).
-Your task is to answer with a JSON object that contains the following fields, that best describes the given document content. Respond only with the json, without any additional information!
-Do not apply any formatting to the json. Your response should be a single line of json.
+{{ .PromptPreamble }}
 
-- title: The title of the document. If you can't find a suitable title, you can respond with "No Title Found".
-- correspondent: The correspondent that is most relevant to the document. If you can't find a suitable correspondent, you can respond with "Unknown".
-- document_type: The type of the document that best describes the content.
-- tags: A list of tags that describe the document. If you can't find any suitable tags, you can respond with an empty list.
-- created_date: The date on which the document was most likely written. If you can't find a suitable date, you can respond leave it empty.
+Ich stelle dir den Inhalt eines Dokuments zur Verfügung, das teilweise von OCR gelesen wurde (es kann also Fehler oder fehlende Zeichen enthalten und ist möglicherweise nicht vollständig).
+Ihre Aufgabe ist es, mit einem JSON-Objekt zu antworten, das die folgenden Felder enthält, die den Inhalt des gegebenen Dokuments am besten beschreiben. Antworten Sie nur mit dem JSON-Objekt, ohne zusätzliche Informationen!
+Wenden Sie keine Formatierung auf das json an. Ihre Antwort sollte aus einer einzigen json-Zeile bestehen.
 
-# Example JSON object:
+# Beispiel JSON-Objekt:
 {
   "correspondent": "my correspondent",
   "document_type": "my document type",
@@ -17,75 +13,81 @@ Do not apply any formatting to the json. Your response should be a single line o
   "tags": ["tag1", "tag2"],
 }
 
-# Correspondent Field:
-The correspondent that is most relevant to the document.
-Correspondents are the senders of documents that reach you. In the other direction, correspondents are the recipients of documents that you send.
-We can imagine correspondents as virtual drawers in which all documents of a person or company are stored. The goal is to find all the documents assigned to a specific correspondent.
-Try to suggest a correspondent, either from the example list or come up with a new correspondent.
-Try to avoid any legal or financial suffixes like "GmbH" or "AG" in the correspondent name. For example use "Microsoft" instead of "Microsoft Ireland Operations Limited" or "Amazon" instead of "Amazon EU S.a.r.l.".
-If you can't find a suitable correspondent, you can respond with "Unknown".
+# Correspondent:
+Der Korrespondent, der für das Dokument am wichtigsten ist.
+Korrespondenten sind die Absender von Dokumenten, die Sie erreichen. Umgekehrt sind die Korrespondenten die Empfänger der Dokumente, die Sie versenden.
+Wir können uns Korrespondenten als virtuelle Schubladen vorstellen, in denen alle Dokumente einer Person oder eines Unternehmens gespeichert sind. Das Ziel ist es, alle Dokumente zu finden, die einem bestimmten Korrespondenten zugeordnet sind.
+Versuchen Sie, einen Korrespondenten vorzuschlagen, entweder aus der Beispieldatei oder denken Sie sich einen neuen Korrespondenten aus.
+Versuchen Sie, juristische oder finanzielle Suffixe wie „GmbH“ oder „AG“ im Korrespondentennamen zu vermeiden. Verwenden Sie beispielsweise „Microsoft“ anstelle von „Microsoft Ireland Operations Limited“ oder „Amazon“ anstelle von „Amazon EU S.a.r.l.“.
+Wenn ein Korrespondent in einer ähnlichen Schreibweise bereits in den Beispielen vorhanden ist, verwenden Sie diesen Korrespondenten. Achten Sie darauf, Abkürzungen oder Variationen des Korrespondentennamens zu berücksichtigen.
+Wenn Sie keinen passenden Korrespondenten finden, können Sie mit „Unbekannt“ antworten.
 
-Example Correspondents:
+Beispiel Korrespondenten:
 {{.AvailableCorrespondents | join ", "}}
 
-List of Correspondents with Blacklisted Names. Please avoid these correspondents or variations of their names:
+Liste der Korrespondenten mit Namen, die auf der schwarzen Liste stehen. Bitte vermeiden Sie diese Korrespondenten oder Variationen ihrer Namen:
 {{.BlackList | join ", "}}
 
-# Title Field:
-The title should be concise and descriptive, but it should also be unique and not too generic.
-It should be easy to understand and should give a good idea of what the document is about. It should also be easy to search for in the future.
-It is ok to me a bit longer if it helps to make the title more descriptive.
-If it is an invoice, try to include what was purchased or the service that was provided.
-The title should NOT contain the correspondent, or a variation or abbreviation of the correspondent! Leave the correspondent out of the title!
-Include in the title the most likely type of document (e.g., invoice, contract, statement) if possible.
-If you can't find a suitable title, you can respond with "No Title Found".
-Don't just copy the first sentence of the content as the title. Try to be as descriptive as possible and include any relevant information that you can find in the content.
-If the document is about money, try to include the amount in the title if possible.
+{{.CorrespondentExplanation}}
 
+# Titel-Feld:
+Der Titel sollte prägnant und beschreibend sein, aber auch eindeutig und nicht zu allgemein.
+Er sollte leicht zu verstehen sein und eine gute Vorstellung davon vermitteln, worum es in dem Dokument geht. Er sollte auch in der Zukunft leicht zu finden sein.
+Es ist in Ordnung, wenn der Titel etwas länger ist, wenn er dadurch anschaulicher wird.
+Wenn es sich um eine Rechnung handelt, versuchen Sie anzugeben, was gekauft wurde oder welche Dienstleistung erbracht wurde.
+Der Titel sollte NICHT den Korrespondenten oder eine Variation oder Abkürzung des Korrespondenten enthalten! Lassen Sie den Korrespondenten aus dem Titel weg!
+Geben Sie im Titel nach Möglichkeit die wahrscheinliche Art des Dokuments an (z. B. Rechnung, Vertrag, Auszug).
+Wenn Sie keinen passenden Titel finden, können Sie mit „Kein Titel gefunden“ antworten.
+Kopieren Sie nicht einfach den ersten Satz des Inhalts als Titel. Versuchen Sie, so beschreibend wie möglich zu sein und alle relevanten Informationen, die Sie im Inhalt finden können, einzubeziehen.
+Wenn es in dem Dokument um Geld geht, versuchen Sie, den Betrag in den Titel aufzunehmen, wenn möglich.
+{{.TitleExplanation}}
 
-# Document_Type Field:
-A document type is a category that describes the content of the document. It helps to organize and search for documents in the future.
-You should choose the most specific document type that fits the content of the document. Try to be as accurate as possible.
-If a document fits multiple types, choose the one that best describes the main content of the document.
-Find the most likely type of the document. Do not leave this field empty! If you can't find a suitable document type, you can create a new one.
+# Feld Document_Type:
+Ein Dokumententyp ist eine Kategorie, die den Inhalt des Dokuments beschreibt. Sie hilft beim Organisieren und Suchen von Dokumenten in der Zukunft.
+Sie sollten die spezifischste Dokumentart wählen, die zum Inhalt des Dokuments passt. Versuchen Sie, so genau wie möglich zu sein.
+Wenn ein Dokument mehreren Typen entspricht, wählen Sie denjenigen, der den Hauptinhalt des Dokuments am besten beschreibt.
+Ermitteln Sie den wahrscheinlichsten Dokumententyp. Lassen Sie dieses Feld nicht leer! Wenn Sie keine passende Dokumentart finden, können Sie eine neue erstellen.
 
-Example Document Types:
+Beispiel Dokumenttypen:
 {{.AvailableDocumentTypes | join ", "}}
 
+{{.DocumentTypeExplanation}}
 
-# Tags Field:
-A list of tags that describe the document. If you can't find any suitable tags, you can respond with an empty list.
-Be very selective and only choose the most relevant tags since too many tags will make the document less discoverable. You should not select more than 4 tags.
-You must select tags from the list of available tags that I will provide. Only select tags from the provided list.
+# Feld Tags:
+Eine Liste von Tags, die das Dokument beschreiben. Wenn Sie keine passenden Tags finden, können Sie mit einer leeren Liste antworten.
+Seien Sie sehr wählerisch und wählen Sie nur die relevantesten Tags aus, da zu viele Tags das Dokument weniger auffindbar machen. Sie sollten nicht mehr als 4 Tags auswählen.
+Sie müssen Tags aus der Liste der verfügbaren Tags auswählen, die ich Ihnen zur Verfügung stellen werde. Wählen Sie nur Tags aus der bereitgestellten Liste aus.
 
-Available Tags:
+Verfügbare Tags:
 {{.AvailableTags | join ", "}}
 
-Here is a explanation of what some tags are used for. Try very hard to find the tags that best describe the document.
+Hier ist eine Erklärung, wofür Tags verwendet werden sollen. Bemühen Sie sich, die Tags die den Inhalt des Dokuments am besten beschreiben, auszuwählen.
 
-Arbeit & Beruf: For documents related to employment, work contracts, pay slips, or any work-related correspondence.
-Ausweise & Dokumente: For identity documents, passports, driver’s licenses, or official identification records.
-Bank & Finanzen: For bank statements, credit card statements, financial reports, and any other banking-related documents.
-Bildung & Qualifikationen: For certificates, diplomas, transcripts, or documents related to education and training.
-Fahrzeug & Transport: For vehicle registrations, purchase agreements, maintenance records, or public transport passes.
-Familie & Partnerschaft: For family-related documents, such as marriage certificates, birth certificates, and guardianship papers.
-Gesundheit & Krankenkasse: For health records, insurance cards, medical reports, and correspondence with health insurance providers.
-paperless-gpt: This tag should never be used!
-paperless-gpt-auto:  This tag should never be used!
-Rechnungen & Belege: For invoices, receipts, and any proof of payment for purchases or services.
-Rechtliches & Anwaltliches: For legal documents, contracts, court records, or correspondence with attorneys.
-Reisen & Urlaube: For travel-related documents, including tickets, hotel reservations, visas, and itineraries.
-Sonstiges & Persönliches: For miscellaneous or personal documents that don’t fit other categories.
-Steuern & Finanzamt: For tax documents, such as tax returns, assessments, and correspondence with tax authorities.
-Versicherung & Vorsorge: For insurance policies, pension documents, or records related to financial planning.
-Verträge & Abonnements: For service contracts, subscription agreements, and recurring service agreements.
-Wohnung & Immobilien: For rental agreements, mortgage documents, property deeds, and other real estate-related documents. Also for utility bills like electricity, water, or gas bills.
-
-# Created_Date Field:
-The date on which the document was most likely written. If you can't find a suitable date, you can leave it empty.
-All dates should be in the format "YYYY-MM-DD".
+- **Arbeit & Beruf**: Für Dokumente im Zusammenhang mit dem Arbeitsverhältnis, Arbeitsverträge, Lohnabrechnungen oder jegliche arbeitsbezogene Korrespondenz.
+- **Reisen & Urlaube**: Für Dokumente, die mit einer Reise in Zusamenhang stehen. Einschließlich Reise-Versicherungen, Fahrkarten, Hotelreservierungen, Visa, Reiserouten, etc.
+- **Ausweise & Dokumente**: Für Ausweisdokumente, Pässe, Führerscheine oder amtliche Ausweispapiere.
+- **Bank & Finanzen**: Für Kontoauszüge, Kreditkartenabrechnungen, Finanzberichte und alle anderen bankbezogenen Dokumente.
+- **Bildung & Qualifikationen**: Für Zeugnisse, Diplome, Abschriften oder Dokumente im Zusammenhang mit Bildung und Ausbildung.
+- **Fahrzeug & Transport**: Für Fahrzeugzulassungen, Kaufverträge, Wartungsunterlagen oder Fahrscheine für öffentliche Verkehrsmittel.
+- **Familie & Partnerschaft**: Für familienbezogene Dokumente, wie Heiratsurkunden, Geburtsurkunden und Vormundschaftspapiere.
+- **Gesundheit & Krankenkasse**: Für Gesundheitsunterlagen, Versicherungskarten, Arztberichte und Korrespondenz mit Krankenkassen.
+- **Rechnungen & Belege**: Für Rechnungen, Quittungen und alle Zahlungsnachweise für Einkäufe oder Dienstleistungen.
+- **Rechtliches & Anwaltliches**: Für juristische Dokumente, Verträge, Gerichtsakten oder Korrespondenz mit Anwälten.
+- **Freizeit & Persönliches**: Für sonstige oder persönliche Dokumente, die nicht in die anderen Kategorien passen.
+- **Steuern & Finanzamt**: Für Steuerunterlagen wie Steuererklärungen, Bescheide und Korrespondenz mit den Finanzbehörden.
+- **Versicherung & Vorsorge**: Für Versicherungspolicen, Rentendokumente oder Unterlagen im Zusammenhang mit der Finanzplanung.
+- **Verträge & Abonnements**: Für Dienstleistungsverträge, Abonnementvereinbarungen und wiederkehrende Dienstleistungsverträge.
+- **Wohnung & Immobilien**: Für Mietverträge, Hypothekenunterlagen, Grundstücksurkunden und andere immobilienbezogene Dokumente. Auch für Versorgungsrechnungen wie Strom-, Wasser- oder Gasrechnungen.
+{{.TagsExplanation}}
 
 
-Here is the content of the document is likely in {{.Language}}.
-Document Content:
+# Feld Created_Date:
+Das Datum, an dem das Dokument höchstwahrscheinlich erstellt wurde. Wenn Sie kein passendes Datum finden, können Sie das Feld leer lassen.
+Alle Datumsangaben sollten das Format "YYYY-MM-DD" haben.
+
+{{ .PromptPostamble }}
+
+Hier ist der Inhalt des Dokuments wahrscheinlich in {{.Language}}.
+Inhalt des Dokuments:
 {{.Content}}
+

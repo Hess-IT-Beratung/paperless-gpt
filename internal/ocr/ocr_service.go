@@ -2,10 +2,12 @@ package ocr
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"fmt"
 	"paperless-gpt/internal/config"
 	"paperless-gpt/internal/logging"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,7 +21,32 @@ var (
 	log = logging.InitLogger(config.LogLevel)
 )
 
-func ProcessDocument(docBytes []byte) (string, error) {
+const maxCacheSize = 100
+
+type CacheEntry struct {
+	key   int
+	value string
+}
+
+type Cache struct {
+	cacheMap  map[int]string
+	cacheList *list.List
+	mutex     sync.Mutex
+}
+
+var ocrCache = Cache{
+	cacheMap:  make(map[int]string),
+	cacheList: list.New(),
+}
+
+func ProcessDocumentOcr(docBytes []byte, documentId int) (string, error) {
+	ocrCache.mutex.Lock()
+	if cachedResult, found := ocrCache.cacheMap[documentId]; found {
+		ocrCache.mutex.Unlock()
+		return cachedResult, nil
+	}
+	ocrCache.mutex.Unlock()
+
 	// Load AWS configuration
 	awsConfig, err := aws_config.LoadDefaultConfig(context.TODO(), aws_config.WithRegion(config.Region))
 	if err != nil {
@@ -30,7 +57,7 @@ func ProcessDocument(docBytes []byte) (string, error) {
 	s3Client := s3.NewFromConfig(awsConfig)
 	textractClient := textract.NewFromConfig(awsConfig)
 
-	objectKey := "uploaded-pdf-" + time.Now().Format("20060102-150405") + ".pdf"
+	objectKey := fmt.Sprintf("uploaded-pdf-%d-%s.pdf", documentId, time.Now().Format("20060102-150405"))
 
 	// Upload the document to S3
 	if err := uploadToS3(s3Client, config.Bucket, objectKey, docBytes); err != nil {
@@ -61,7 +88,23 @@ func ProcessDocument(docBytes []byte) (string, error) {
 	}
 
 	// Extract and return the text from the blocks
-	return extractTextFromBlocks(blocks), nil
+	extractedText := extractTextFromBlocks(blocks)
+
+	// Store result in cache
+	ocrCache.mutex.Lock()
+	if ocrCache.cacheList.Len() >= maxCacheSize {
+		evictElement := ocrCache.cacheList.Back()
+		if evictElement != nil {
+			ocrCache.cacheList.Remove(evictElement)
+			delete(ocrCache.cacheMap, evictElement.Value.(CacheEntry).key)
+		}
+	}
+	newEntry := CacheEntry{key: documentId, value: extractedText}
+	ocrCache.cacheList.PushFront(newEntry)
+	ocrCache.cacheMap[documentId] = extractedText
+	ocrCache.mutex.Unlock()
+
+	return extractedText, nil
 }
 
 // deleteFromS3 deletes a file from a specified S3 bucket.
