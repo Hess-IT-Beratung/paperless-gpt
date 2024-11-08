@@ -70,14 +70,14 @@ func Start() {
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.generateDocumentSuggestion, config.AutoTag, "auto_tagged"); err != nil {
+		if err := handleAutoTags(app, app.generateAutoDocumentSuggestion, config.AutoTag, "auto_tagged", true); err != nil {
 			errorChan <- err
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag, "ocr_textract"); err != nil {
+		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag, "ocr_textract", false); err != nil {
 			errorChan <- err
 		}
 	}()
@@ -94,14 +94,14 @@ func Start() {
 
 }
 
-func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, customFieldName string) error {
+func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, customFieldName string, waitForOtherJobsToComplete bool) error {
 	minBackoffDuration := 10 * time.Second
 	maxBackoffDuration := time.Hour
 	pollingInterval := 10 * time.Second
 
 	backoffDuration := minBackoffDuration
 	for {
-		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName, customFieldName)
+		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName, customFieldName, waitForOtherJobsToComplete)
 		if err != nil {
 			log.Errorf("Error in handleAutoTags: %v", err)
 			time.Sleep(backoffDuration)
@@ -124,7 +124,7 @@ func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, cus
 type SuggestionFunc func(ctx context.Context, document paperless_model.Document) (*paperless_model.DocumentSuggestion, error)
 
 // handles the background auto-tagging of documents
-func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string, customFieldName string) (int, error) {
+func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagLimit bool) (int, error) {
 	ctx := context.Background()
 
 	documents, err := app.PaperlessClient.GetDocumentsByTags(ctx, []string{tagName}, 1)
@@ -140,7 +140,14 @@ func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName s
 	log.Debugf("Found at least %d remaining documents with tag %s", len(documents), tagName)
 
 	// Generate suggestion for the document using the provided function pointer
-	suggestion, err := suggestionFunc(ctx, documents[0])
+	document := documents[0]
+
+	if tagLimit && len(document.Tags) >= 2 {
+		log.Debugf("Document with id: '%d' still has more than one tag. Skipping auto-tagging.", document.ID)
+		return 0, nil
+	}
+
+	suggestion, err := suggestionFunc(ctx, document)
 	if err != nil {
 		return 0, fmt.Errorf("error generating suggestion: %w", err)
 	}

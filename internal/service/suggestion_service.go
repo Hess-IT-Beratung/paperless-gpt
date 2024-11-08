@@ -181,8 +181,8 @@ func (app *App) getOcrDocumentSuggestion(ctx context.Context, doc paperless_mode
 	return &suggestion, nil
 }
 
-// generateDocumentSuggestion generates suggestions (title, tags, and correspondent) for a single document.
-func (app *App) generateDocumentSuggestion(ctx context.Context, doc paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
+// generateAutoDocumentSuggestion generates suggestions (title, tags, and correspondent) for a single document.
+func (app *App) generateAutoDocumentSuggestion(ctx context.Context, doc paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
 	// Fetch all available tags from paperless-ngx
 	availableTagsMap, err := app.PaperlessClient.GetAllTags(ctx)
 	if err != nil {
