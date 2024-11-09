@@ -5,8 +5,6 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
-
-	"github.com/Masterminds/sprig/v3"
 )
 
 var (
@@ -39,7 +37,7 @@ func init() {
 	jsonTemplatePath := filepath.Join(promptsDir, "json_prompt.tmpl")
 	jsonTemplateContent, err := os.ReadFile(jsonTemplatePath)
 	if err != nil {
-		log.Errorf("Could not read %s, using default template: %v", jsonTemplatePath, err)
+		log.Infof("Could not read %s, using default template: %v", jsonTemplatePath, err)
 		jsonTemplateContent = []byte(jsonTemplate)
 		if err := os.WriteFile(jsonTemplatePath, jsonTemplateContent, os.ModePerm); err != nil {
 			log.Fatalf("Failed to write default json template to disk: %v", err)
