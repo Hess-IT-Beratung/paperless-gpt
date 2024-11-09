@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+
+	"github.com/Masterminds/sprig/v3"
 )
 
 var (
