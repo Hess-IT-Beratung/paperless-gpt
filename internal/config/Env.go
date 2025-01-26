@@ -17,7 +17,8 @@ var (
 	LlmProvider            = os.Getenv("LLM_PROVIDER")
 	LlmModel               = os.Getenv("LLM_MODEL")
 	LogLevel               = strings.ToLower(os.Getenv("LOG_LEVEL"))
-	CorrespondentBlackList = strings.Split(os.Getenv("CORRESPONDENT_BLACK_LIST"), ",")
+	CorrespondentBlackList = splitEnvVar("CORRESPONDENT_BLACK_LIST")
+	TagBlackList           = splitEnvVar("TAG_BLACK_LIST")
 
 	Region = os.Getenv("AWS_REGION")
 	Bucket = os.Getenv("AWS_OCR_BUCKET_NAME")
@@ -32,6 +33,15 @@ var (
 
 func init() {
 	validateEnvVars()
+}
+
+// splitEnvVar splits an environment variable by commas and returns a slice of strings
+func splitEnvVar(envVar string) []string {
+	value := os.Getenv(envVar)
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
 }
 
 // validateEnvVars ensures all necessary environment variables are set
@@ -68,6 +78,10 @@ func validateEnvVars() {
 	}
 	if OcrTag == "" {
 		OcrTag = "paperless-gpt-ocr"
+	}
+
+	if len(TagBlackList) == 0 {
+		TagBlackList = append(TagBlackList, OcrTag)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 )
 
 // getSuggestedJson generates a suggested json for a document using the LlmClient
-func (app *App) getSuggestedJson(ctx context.Context, content string, availableTags []string, availableCorrespondents []string, correspondentBlackList []string, availableDocumentTypeNames []string, originalDocument paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
+func (app *App) getSuggestedJson(ctx context.Context, content string, availableTags []string, availableCorrespondents []string, correspondentBlackList []string, tagBlackList []string, availableDocumentTypeNames []string, originalDocument paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
 	likelyLanguage := config.GetLikelyLanguage()
 
 	var promptBuffer bytes.Buffer
@@ -25,6 +25,7 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 		"AvailableTags":            availableTags,
 		"AvailableCorrespondents":  availableCorrespondents,
 		"BlackList":                correspondentBlackList,
+		"BlackListTags":            tagBlackList,
 		"Content":                  content,
 		"AvailableDocumentTypes":   availableDocumentTypeNames,
 		"PromptPreamble":           config.PromptPreamble,
@@ -230,12 +231,16 @@ func (app *App) generateAutoDocumentSuggestion(ctx context.Context, doc paperles
 	sort.Strings(availableDocumentTypeNames)
 
 	// Generate json suggestion
-	if jsonSuggestion, err := app.getSuggestedJson(ctx, content, availableTagNames, availableCorrespondentNames, config.CorrespondentBlackList, availableDocumentTypeNames, doc); err != nil {
+	if jsonSuggestion, err := app.getSuggestedJson(ctx, content, availableTagNames, availableCorrespondentNames, config.CorrespondentBlackList, config.TagBlackList, availableDocumentTypeNames, doc); err != nil {
 		return nil, fmt.Errorf("error generating json for document %d: %v", documentID, err)
 	} else {
+		for _, tag := range doc.Tags {
+			if tag != config.OcrTag && tag != config.AutoTag {
+				*jsonSuggestion.Tags = append(*jsonSuggestion.Tags, tag)
+			}
+		}
 		return jsonSuggestion, nil
 	}
-
 }
 
 func sortStrings(names []string) []string {

@@ -70,14 +70,14 @@ func Start() {
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.generateAutoDocumentSuggestion, config.AutoTag, "auto_tagged", true); err != nil {
+		if err := handleAutoTags(app, app.generateAutoDocumentSuggestion, config.AutoTag, "auto_tagged", config.TagBlackList); err != nil {
 			errorChan <- err
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag, "ocr_textract", false); err != nil {
+		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag, "ocr_textract", []string{}); err != nil {
 			errorChan <- err
 		}
 	}()
@@ -94,14 +94,14 @@ func Start() {
 
 }
 
-func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, customFieldName string, waitForOtherJobsToComplete bool) error {
+func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagBlackList []string) error {
 	minBackoffDuration := 10 * time.Second
 	maxBackoffDuration := time.Hour
 	pollingInterval := 10 * time.Second
 
 	backoffDuration := minBackoffDuration
 	for {
-		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName, customFieldName, waitForOtherJobsToComplete)
+		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName, customFieldName, tagBlackList)
 		if err != nil {
 			log.Errorf("Error in handleAutoTags: %v", err)
 			time.Sleep(backoffDuration)
@@ -124,7 +124,7 @@ func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, cus
 type SuggestionFunc func(ctx context.Context, document paperless_model.Document) (*paperless_model.DocumentSuggestion, error)
 
 // handles the background auto-tagging of documents
-func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagLimit bool) (int, error) {
+func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagBlackList []string) (int, error) {
 	ctx := context.Background()
 
 	documents, err := app.PaperlessClient.GetDocumentsByTags(ctx, []string{tagName}, 1)
@@ -142,9 +142,14 @@ func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName s
 	// Generate suggestion for the document using the provided function pointer
 	document := documents[0]
 
-	if tagLimit && len(document.Tags) >= 2 {
-		log.Debugf("Document with id: '%d' still has more than one tag. Skipping auto-tagging.", document.ID)
-		return 0, nil
+	// Check for blacklisted tags
+	for _, tag := range document.Tags {
+		for _, blacklistedTag := range tagBlackList {
+			if tag == blacklistedTag {
+				log.Debugf("Document with id: '%d' has a blacklisted tag: '%s'. Skipping auto-tagging.", document.ID, tag)
+				return 0, nil
+			}
+		}
 	}
 
 	suggestion, err := suggestionFunc(ctx, document)
