@@ -18,6 +18,7 @@ import (
 // getSuggestedJson generates a suggested json for a document using the LlmClient
 func (app *App) getSuggestedJson(ctx context.Context, content string, availableTags []string, availableCorrespondents []string, correspondentBlackList []string, tagBlackList []string, availableDocumentTypeNames []string, originalDocument paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
 	if strings.TrimSpace(content) == "" {
+		log.Warnf("Empty content for document %d", originalDocument.ID)
 		jsonStr := fmt.Sprintf(`{"title": "ERROR: %s"}`, originalDocument.Title)
 		return unmarshalSuggestion(jsonStr, originalDocument)
 	}
