@@ -1,8 +1,39 @@
 package paperless_model
 
 import (
+	"encoding/json"
+	"strings"
 	"time"
 )
+
+// FlexibleTime handles both RFC3339 timestamps and date-only strings
+type FlexibleTime struct {
+	time.Time
+}
+
+func (ft *FlexibleTime) UnmarshalJSON(data []byte) error {
+	str := strings.Trim(string(data), `"`)
+	
+	// Try RFC3339 format first (with time)
+	if t, err := time.Parse(time.RFC3339, str); err == nil {
+		ft.Time = t
+		return nil
+	}
+	
+	// Try date-only format
+	if t, err := time.Parse("2006-01-02", str); err == nil {
+		ft.Time = t
+		return nil
+	}
+	
+	// Try other common formats
+	if t, err := time.Parse("2006-01-02T15:04:05", str); err == nil {
+		ft.Time = t
+		return nil
+	}
+	
+	return json.Unmarshal(data, &ft.Time)
+}
 
 type DocumentType struct {
 	Name              string `json:"name"`
@@ -79,10 +110,10 @@ type GetDocumentsApiResponse struct {
 		Title               string        `json:"title"`
 		Content             string        `json:"content"`
 		Tags                []int         `json:"tags"`
-		Created             time.Time     `json:"created"`
+		Created             FlexibleTime  `json:"created"`
 		CreatedDate         string        `json:"created_date"`
-		Modified            time.Time     `json:"modified"`
-		Added               time.Time     `json:"added"`
+		Modified            FlexibleTime  `json:"modified"`
+		Added               FlexibleTime  `json:"added"`
 		ArchiveSerialNumber interface{}   `json:"archive_serial_number"`
 		OriginalFileName    string        `json:"original_file_name"`
 		ArchivedFileName    string        `json:"archived_file_name"`
@@ -107,10 +138,10 @@ type GetDocumentApiResponse struct {
 	Title               string        `json:"title"`
 	Content             string        `json:"content"`
 	Tags                []int         `json:"tags"`
-	Created             time.Time     `json:"created"`
+	Created             FlexibleTime  `json:"created"`
 	CreatedDate         string        `json:"created_date"`
-	Modified            time.Time     `json:"modified"`
-	Added               time.Time     `json:"added"`
+	Modified            FlexibleTime  `json:"modified"`
+	Added               FlexibleTime  `json:"added"`
 	ArchiveSerialNumber interface{}   `json:"archive_serial_number"`
 	OriginalFileName    string        `json:"original_file_name"`
 	ArchivedFileName    string        `json:"archived_file_name"`
