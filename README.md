@@ -7,9 +7,9 @@ A Go application that automatically processes and tags documents in Paperless-NG
 
 ## Prerequisites
 
-- Go 1.23 or later
+- Go 1.26 or later
 - Access to a Paperless-NGX instance
-- OpenAI API key or Ollama instance
+- OpenAI API key, Anthropic API key, or Ollama instance
 - AWS credentials (for OCR functionality)
 
 ## Local Development
@@ -29,9 +29,12 @@ Create a `.env` file in the root directory with the following variables:
 # Required
 PAPERLESS_BASE_URL="http://localhost:8000"
 PAPERLESS_API_TOKEN="your-paperless-api-token"
-LLM_PROVIDER="openai"  # or "ollama"
+LLM_PROVIDER="openai"  # or "anthropic" or "ollama"
 LLM_MODEL="gpt-4o"     # or your preferred model
+
+# LLM API Keys (set the one matching your provider)
 OPENAI_API_KEY="your-openai-api-key"
+ANTHROPIC_API_KEY="your-anthropic-api-key"
 
 # AWS (required for OCR)
 AWS_ACCESS_KEY_ID="your-aws-access-key"
