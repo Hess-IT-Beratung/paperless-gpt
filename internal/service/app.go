@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/llms/openai"
 
@@ -178,6 +179,14 @@ func createLLM() (llms.Model, error) {
 		return openai.New(
 			openai.WithModel(config.LlmModel),
 			openai.WithToken(config.OpenaiAPIKey),
+		)
+	case "anthropic":
+		if config.AnthropicAPIKey == "" {
+			return nil, fmt.Errorf("Anthropic API key is not set")
+		}
+		return anthropic.New(
+			anthropic.WithModel(config.LlmModel),
+			anthropic.WithToken(config.AnthropicAPIKey),
 		)
 	case "ollama":
 		host := os.Getenv("OLLAMA_HOST")

@@ -12,6 +12,7 @@ var (
 	PaperlessBaseURL       = os.Getenv("PAPERLESS_BASE_URL")
 	PaperlessAPIToken      = os.Getenv("PAPERLESS_API_TOKEN")
 	OpenaiAPIKey           = os.Getenv("OPENAI_API_KEY")
+	AnthropicAPIKey        = os.Getenv("ANTHROPIC_API_KEY")
 	AutoTag                = os.Getenv("PAPERLESS_AUTO_TAG")
 	OcrTag                 = os.Getenv("PAPERLESS_OCR_TAG")
 	LlmProvider            = os.Getenv("LLM_PROVIDER")
@@ -64,6 +65,10 @@ func validateEnvVars() {
 
 	if LlmProvider == "openai" && OpenaiAPIKey == "" {
 		log.Fatal("Please set the OPENAI_API_KEY environment variable for OpenAI provider.")
+	}
+
+	if LlmProvider == "anthropic" && AnthropicAPIKey == "" {
+		log.Fatal("Please set the ANTHROPIC_API_KEY environment variable for Anthropic provider.")
 	}
 
 	if Region == "" {
