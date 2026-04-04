@@ -235,7 +235,7 @@ func (paperlessClient *PaperlessClient) GetDocument(ctx context.Context, documen
 }
 
 // UpdateDocuments updates the specified documents with suggested changes
-func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, suggestion paperless_model.DocumentSuggestion, customFieldName string) error {
+func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, suggestion paperless_model.DocumentSuggestion, customFieldName string, llmModel string) error {
 
 	documentID := suggestion.DocumentID
 
@@ -302,9 +302,22 @@ func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, sugg
 			"value": currentDate,
 		},
 	}
-	// add all  existing CustomFields
+	// Set auto_tagged_llm custom field with the LLM model name
+	if llmModel != "" {
+		llmFieldID, llmFieldExists := customFields["auto_tagged_llm"]
+		if !llmFieldExists {
+			return fmt.Errorf("a custom field with the name: 'auto_tagged_llm' does not exist in paperless-ngx and must be created with the type: 'TEXT'")
+		}
+		updatedFields["custom_fields"] = append(updatedFields["custom_fields"].([]map[string]interface{}), map[string]interface{}{
+			"field": llmFieldID,
+			"value": llmModel,
+		})
+	}
+
+	// add all existing CustomFields
+	llmFieldID, _ := customFields["auto_tagged_llm"]
 	for _, customField := range suggestion.OriginalDocument.CustomFields {
-		if customField.Field != autoTaggedFieldID {
+		if customField.Field != autoTaggedFieldID && customField.Field != llmFieldID {
 			updatedFields["custom_fields"] = append(updatedFields["custom_fields"].([]map[string]interface{}), map[string]interface{}{
 				"field": customField.Field,
 				"value": customField.Value,

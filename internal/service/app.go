@@ -71,14 +71,14 @@ func Start() {
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.generateAutoDocumentSuggestion, config.AutoTag, "auto_tagged", config.TagBlackList); err != nil {
+		if err := handleAutoTags(app, app.generateAutoDocumentSuggestion, config.AutoTag, "auto_tagged", config.TagBlackList, config.LlmModel); err != nil {
 			errorChan <- err
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag, "ocr_textract", []string{}); err != nil {
+		if err := handleAutoTags(app, app.getOcrDocumentSuggestion, config.OcrTag, "ocr_textract", []string{}, ""); err != nil {
 			errorChan <- err
 		}
 	}()
@@ -95,14 +95,14 @@ func Start() {
 
 }
 
-func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagBlackList []string) error {
+func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagBlackList []string, llmModel string) error {
 	minBackoffDuration := 10 * time.Second
 	maxBackoffDuration := time.Hour
 	pollingInterval := 10 * time.Second
 
 	backoffDuration := minBackoffDuration
 	for {
-		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName, customFieldName, tagBlackList)
+		processedCount, err := app.processAutoTagDocuments(suggestionFunc, tagName, customFieldName, tagBlackList, llmModel)
 		if err != nil {
 			log.Errorf("Error in handleAutoTags: %v", err)
 			time.Sleep(backoffDuration)
@@ -125,7 +125,7 @@ func handleAutoTags(app *App, suggestionFunc SuggestionFunc, tagName string, cus
 type SuggestionFunc func(ctx context.Context, document paperless_model.Document) (*paperless_model.DocumentSuggestion, error)
 
 // handles the background auto-tagging of documents
-func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagBlackList []string) (int, error) {
+func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName string, customFieldName string, tagBlackList []string, llmModel string) (int, error) {
 	ctx := context.Background()
 
 	documents, err := app.PaperlessClient.GetDocumentsByTags(ctx, []string{tagName}, 1)
@@ -161,7 +161,7 @@ func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName s
 	*suggestion.Tags = paperless_service.RemoveTagFromList(*suggestion.Tags, tagName)
 
 	// Update document with suggestion
-	err = app.PaperlessClient.UpdateDocument(ctx, *suggestion, customFieldName)
+	err = app.PaperlessClient.UpdateDocument(ctx, *suggestion, customFieldName, llmModel)
 	if err != nil {
 		return 0, fmt.Errorf("error updating documents: %w", err)
 	}
