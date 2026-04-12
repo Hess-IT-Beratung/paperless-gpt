@@ -1,93 +1,130 @@
 {{ .PromptPreamble }}
 
-Ich stelle dir den Inhalt eines Dokuments zur Verfügung, das teilweise von OCR gelesen wurde (es kann also Fehler oder fehlende Zeichen enthalten und ist möglicherweise nicht vollständig).
-Ihre Aufgabe ist es, mit einem JSON-Objekt zu antworten, das die folgenden Felder enthält, die den Inhalt des gegebenen Dokuments am besten beschreiben. Antworten Sie nur mit dem JSON-Objekt, ohne zusätzliche Informationen!
-Wenden Sie keine Formatierung auf das json an. Ihre Antwort sollte aus einer einzigen json-Zeile bestehen.
+WICHTIG: Antworten Sie AUSSCHLIESSLICH mit einem einzigen validen JSON-Objekt in einer einzigen Zeile. Keine Erklärungen, keine Markdown-Formatierung, keine Backticks, kein Text vor oder nach dem JSON. Wenn ein Feld keinen passenden Wert hat, verwenden Sie null (bei created_date) oder einen leeren Array (bei tags).
 
-# Beispiel JSON-Objekt:
+Die Ausgabe muss immer auf DEUTSCH erfolgen, unabhängig von der Sprache des Dokuments.
+Die Sprache des Dokuments ist wahrscheinlich: {{.Language}}
+
+---
+
+# Aufgabe
+
+Ich stelle dir den Inhalt eines Dokuments zur Verfügung, das teilweise per OCR gelesen wurde (es kann Fehler, fehlende Zeichen oder unvollständige Passagen enthalten).
+Analysiere den Inhalt und befülle die folgenden JSON-Felder so präzise wie möglich.
+
+---
+
+# JSON-Schema
+
+```json
 {
-  "correspondent": "my correspondent",
-  "document_type": "my document type",
-  "title": "my title",
-  "created_date": "2021-01-01"
-  "tags": ["tag1", "tag2"],
+  "correspondent": "Name des Korrespondenten",
+  "document_type": "Typ des Dokuments",
+  "title": "Titel des Dokuments",
+  "created_date": "YYYY-MM-DD",
+  "tags": ["tag1", "tag2"]
 }
+```
 
-# Correspondent:
-Der Korrespondent, der für das Dokument am wichtigsten ist.
-Korrespondenten sind die Absender von Dokumenten, die Sie erreichen. Umgekehrt sind die Korrespondenten die Empfänger der Dokumente, die Sie versenden.
-Wir können uns Korrespondenten als virtuelle Schubladen vorstellen, in denen alle Dokumente einer Person oder eines Unternehmens gespeichert sind. Das Ziel ist es, alle Dokumente zu finden, die einem bestimmten Korrespondenten zugeordnet sind.
-Versuchen Sie, einen Korrespondenten vorzuschlagen, entweder aus der Beispieldatei oder denken Sie sich einen neuen Korrespondenten aus.
-Versuchen Sie, juristische oder finanzielle Suffixe wie „GmbH“ oder „AG“ im Korrespondentennamen zu vermeiden. Verwenden Sie beispielsweise „Microsoft“ anstelle von „Microsoft Ireland Operations Limited“ oder „Amazon“ anstelle von „Amazon EU S.a.r.l.“.
-Wenn ein Korrespondent in einer ähnlichen Schreibweise bereits in den Beispielen vorhanden ist, verwenden Sie diesen Korrespondenten. Achten Sie darauf, Abkürzungen oder Variationen des Korrespondentennamens zu berücksichtigen.
-Wenn Sie keinen passenden Korrespondenten finden, können Sie mit „Unbekannt“ antworten.
+---
 
-Beispiel Korrespondenten:
+# Feld: correspondent
+
+**Definition:** Der wichtigste Absender oder Empfänger des Dokuments – je nach Richtung der Kommunikation.
+
+**Regeln:**
+- Kurze, gebräuchliche Firmennamen ohne juristische Suffixe: „Microsoft" statt „Microsoft Ireland Operations Limited", „Amazon" statt „Amazon EU S.à r.l."
+- Wenn ein ähnlicher Name bereits in der Beispielliste vorhanden ist, diesen verwenden (auch bei abweichender Schreibweise oder Abkürzung).
+- Keine Namen aus der Blacklist verwenden (auch keine Variationen).
+- Fallback: „Unbekannt" – nur wenn kein Korrespondent identifizierbar ist.
+
+**Verfügbare Korrespondenten (Beispiele):**
 {{.AvailableCorrespondents | join ", "}}
 
-Liste der Korrespondenten mit Namen, die auf der schwarzen Liste stehen. Bitte vermeiden Sie diese Korrespondenten oder Variationen ihrer Namen:
+**Blacklist (diese und Variationen davon vermeiden):**
 {{.BlackList | join ", "}}
 
 {{.CorrespondentExplanation}}
 
-# Titel-Feld:
-Der Titel sollte prägnant und beschreibend sein, aber auch eindeutig und nicht zu allgemein.
-Er sollte leicht zu verstehen sein und eine gute Vorstellung davon vermitteln, worum es in dem Dokument geht. Er sollte auch in der Zukunft leicht zu finden sein.
-Es ist in Ordnung, wenn der Titel etwas länger ist, wenn er dadurch anschaulicher wird.
-Wenn es sich um eine Rechnung handelt, versuchen Sie anzugeben, was gekauft wurde oder welche Dienstleistung erbracht wurde.
-Der Titel sollte NICHT den Korrespondenten oder eine Variation oder Abkürzung des Korrespondenten enthalten! Lassen Sie den Korrespondenten aus dem Titel weg!
-Geben Sie im Titel nach Möglichkeit die wahrscheinliche Art des Dokuments an (z. B. Rechnung, Vertrag, Auszug).
-Wenn Sie keinen passenden Titel finden, können Sie mit „Kein Titel gefunden“ antworten.
-Kopieren Sie nicht einfach den ersten Satz des Inhalts als Titel. Versuchen Sie, so beschreibend wie möglich zu sein und alle relevanten Informationen, die Sie im Inhalt finden können, einzubeziehen.
-Wenn es in dem Dokument um Geld geht, versuchen Sie, den Betrag in den Titel aufzunehmen, wenn möglich.
+---
+
+# Feld: title
+
+**Definition:** Ein prägnanter, beschreibender Titel, der das Dokument eindeutig identifizierbar macht.
+
+**Regeln:**
+- Den Korrespondenten NICHT im Titel erwähnen (auch keine Abkürzungen oder Variationen).
+- Die wahrscheinliche Dokumentenart angeben (z. B. Rechnung, Vertrag, Kontoauszug, Bescheid).
+- Bei Geldbeträgen: den Betrag im Titel nennen, wenn möglich.
+- Bei Rechnungen: beschreiben, was gekauft wurde oder welche Dienstleistung erbracht wurde.
+- Nicht einfach den ersten Satz des Dokuments kopieren – so beschreibend wie möglich sein.
+- Fallback: „Kein Titel gefunden" – nur wenn gar kein Titel ableitbar ist.
+
 {{.TitleExplanation}}
 
-# Feld Document_Type:
-Ein Dokumententyp ist eine Kategorie, die den Inhalt des Dokuments beschreibt. Sie hilft beim Organisieren und Suchen von Dokumenten in der Zukunft.
-Sie sollten die spezifischste Dokumentart wählen, die zum Inhalt des Dokuments passt. Versuchen Sie, so genau wie möglich zu sein.
-Wenn ein Dokument mehreren Typen entspricht, wählen Sie denjenigen, der den Hauptinhalt des Dokuments am besten beschreibt.
-Ermitteln Sie den wahrscheinlichsten Dokumententyp. Lassen Sie dieses Feld nicht leer! Wenn Sie keine passende Dokumentart finden, können Sie eine neue erstellen.
+---
 
-Beispiel Dokumenttypen:
+# Feld: document_type
+
+**Definition:** Die spezifischste Kategorie, die den Hauptinhalt des Dokuments beschreibt.
+
+**Regeln:**
+- Den spezifischsten passenden Typ aus der Liste wählen.
+- Wenn kein Typ passt, einen neuen passenden Typ erfinden.
+- Dieses Feld NIEMALS leer lassen.
+
+**Verfügbare Dokumenttypen:**
 {{.AvailableDocumentTypes | join ", "}}
 
 {{.DocumentTypeExplanation}}
 
-# Feld Tags:
-Eine Liste von Tags, die das Dokument beschreiben. Wenn Sie keine passenden Tags finden, können Sie mit einer leeren Liste antworten.
-Seien Sie sehr wählerisch und wählen Sie nur die relevantesten Tags aus, da zu viele Tags das Dokument weniger auffindbar machen. Sie sollten nicht mehr als 4 Tags auswählen.
-Sie müssen Tags aus der Liste der verfügbaren Tags auswählen, die ich Ihnen zur Verfügung stellen werde. Wählen Sie nur Tags aus der bereitgestellten Liste aus.
+---
 
-Verfügbare Tags:
+# Feld: tags
+
+**Definition:** Eine kurze Liste der relevantesten Tags aus der Auswahlliste.
+
+**Regeln:**
+- Maximal 4 Tags auswählen – lieber weniger, aber treffende Tags.
+- NUR Tags aus der bereitgestellten Liste verwenden – keine eigenen erfinden.
+- Wenn kein Tag passt: leere Liste `[]` zurückgeben.
+
+**Verfügbare Tags:**
 {{.AvailableTags | join ", "}}
 
-Hier ist eine Erklärung, wofür Tags verwendet werden sollen. Bemühen Sie sich, die Tags die den Inhalt des Dokuments am besten beschreiben, auszuwählen.
+**Tag-Bedeutungen (zur Orientierung):**
+- **Arbeit & Beruf**: Arbeitsverträge, Lohnabrechnungen, arbeitsbezogene Korrespondenz.
+- **Reisen & Urlaube**: Fahrkarten, Hotelreservierungen, Visa, Reiseversicherungen, Reiserouten.
+- **Ausweise & Dokumente**: Personalausweis, Reisepass, Führerschein, amtliche Ausweise.
+- **Bank & Finanzen**: Kontoauszüge, Kreditkartenabrechnungen, Finanzberichte.
+- **Bildung & Qualifikationen**: Zeugnisse, Diplome, Abschlüsse, Ausbildungsdokumente.
+- **Fahrzeug & Transport**: Fahrzeugzulassung, Kaufvertrag, Wartung, ÖPNV-Tickets.
+- **Familie & Partnerschaft**: Heiratsurkunden, Geburtsurkunden, Sorgerechtsdokumente.
+- **Gesundheit & Krankenkasse**: Arztberichte, Krankenkassen-Korrespondenz, Versicherungskarten.
+- **Rechnungen & Belege**: Rechnungen, Quittungen, Zahlungsnachweise.
+- **Rechtliches & Anwaltliches**: Verträge, Gerichtsakten, Anwaltskorrespondenz.
+- **Freizeit & Persönliches**: Persönliche Dokumente, die nicht in andere Kategorien passen.
+- **Steuern & Finanzamt**: Steuererklärungen, Steuerbescheide, Finanzamts-Korrespondenz.
+- **Versicherung & Vorsorge**: Versicherungspolicen, Rentenunterlagen, Finanzplanung.
+- **Verträge & Abonnements**: Dienstleistungsverträge, Abonnements, wiederkehrende Leistungen.
+- **Wohnung & Immobilien**: Mietverträge, Grundstücksdokumente, Strom-/Wasser-/Gasrechnungen.
 
-- **Arbeit & Beruf**: Für Dokumente im Zusammenhang mit dem Arbeitsverhältnis, Arbeitsverträge, Lohnabrechnungen oder jegliche arbeitsbezogene Korrespondenz.
-- **Reisen & Urlaube**: Für Dokumente, die mit einer Reise in Zusamenhang stehen. Einschließlich Reise-Versicherungen, Fahrkarten, Hotelreservierungen, Visa, Reiserouten, etc.
-- **Ausweise & Dokumente**: Für Ausweisdokumente, Pässe, Führerscheine oder amtliche Ausweispapiere.
-- **Bank & Finanzen**: Für Kontoauszüge, Kreditkartenabrechnungen, Finanzberichte und alle anderen bankbezogenen Dokumente.
-- **Bildung & Qualifikationen**: Für Zeugnisse, Diplome, Abschriften oder Dokumente im Zusammenhang mit Bildung und Ausbildung.
-- **Fahrzeug & Transport**: Für Fahrzeugzulassungen, Kaufverträge, Wartungsunterlagen oder Fahrscheine für öffentliche Verkehrsmittel.
-- **Familie & Partnerschaft**: Für familienbezogene Dokumente, wie Heiratsurkunden, Geburtsurkunden und Vormundschaftspapiere.
-- **Gesundheit & Krankenkasse**: Für Gesundheitsunterlagen, Versicherungskarten, Arztberichte und Korrespondenz mit Krankenkassen.
-- **Rechnungen & Belege**: Für Rechnungen, Quittungen und alle Zahlungsnachweise für Einkäufe oder Dienstleistungen.
-- **Rechtliches & Anwaltliches**: Für juristische Dokumente, Verträge, Gerichtsakten oder Korrespondenz mit Anwälten.
-- **Freizeit & Persönliches**: Für sonstige oder persönliche Dokumente, die nicht in die anderen Kategorien passen.
-- **Steuern & Finanzamt**: Für Steuerunterlagen wie Steuererklärungen, Bescheide und Korrespondenz mit den Finanzbehörden.
-- **Versicherung & Vorsorge**: Für Versicherungspolicen, Rentendokumente oder Unterlagen im Zusammenhang mit der Finanzplanung.
-- **Verträge & Abonnements**: Für Dienstleistungsverträge, Abonnementvereinbarungen und wiederkehrende Dienstleistungsverträge.
-- **Wohnung & Immobilien**: Für Mietverträge, Hypothekenunterlagen, Grundstücksurkunden und andere immobilienbezogene Dokumente. Auch für Versorgungsrechnungen wie Strom-, Wasser- oder Gasrechnungen.
 {{.TagsExplanation}}
 
+---
 
-# Feld Created_Date:
-Das Datum, an dem das Dokument höchstwahrscheinlich erstellt wurde. Wenn Sie kein passendes Datum finden, können Sie das Feld leer lassen.
-Alle Datumsangaben sollten das Format "YYYY-MM-DD" haben.
+# Feld: created_date
 
-{{ .PromptPostamble }}
+**Definition:** Das wahrscheinlichste Erstellungsdatum des Dokuments.
 
-Hier ist der Inhalt des Dokuments wahrscheinlich in {{.Language}}.
-Inhalt des Dokuments:
+**Regeln:**
+- Format: `"YYYY-MM-DD"` (z. B. `"2024-03-15"`).
+- Wenn kein Datum erkennbar ist: `null`.
+
+---
+
+# Dokumentinhalt
+
 {{.Content}}
 
+{{ .PromptPostamble }}
