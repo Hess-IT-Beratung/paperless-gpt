@@ -32,9 +32,29 @@ type Payload struct {
 	DocumentID    int       `json:"document_id"`
 	Title         string    `json:"title,omitempty"`
 	Tags          []string  `json:"tags,omitempty"`
-	Correspondent string    `json:"correspondent,omitempty"`
-	DocumentType  string    `json:"document_type,omitempty"`
-	Timestamp     time.Time `json:"timestamp"`
+	Correspondent     string    `json:"correspondent,omitempty"`
+	DocumentType      string    `json:"document_type,omitempty"`
+	Summary           string    `json:"summary,omitempty"`
+	Urgency           string    `json:"urgency,omitempty"`            // low | medium | high | critical
+	ActionRequired    bool      `json:"action_required"`
+	ActionDescription string    `json:"action_description,omitempty"`
+	Content           string    `json:"content,omitempty"`
+	Timestamp         time.Time `json:"timestamp"`
+}
+
+// Enrichment is the LLM-generated metadata the caller hands to Notify.
+type Enrichment struct {
+	Summary           string
+	Urgency           string
+	ActionRequired    bool
+	ActionDescription string
+}
+
+var validUrgencies = map[string]bool{
+	"low":      true,
+	"medium":   true,
+	"high":     true,
+	"critical": true,
 }
 
 type Notifier struct {
@@ -57,15 +77,27 @@ func (n *Notifier) Enabled() bool { return n.baseURL != "" }
 
 // Notify sends the suggestion to the configured webhook in a background goroutine.
 // Fire-and-forget: errors are logged, never returned.
-func (n *Notifier) Notify(ctx context.Context, event string, s *paperless_model.DocumentSuggestion) {
+func (n *Notifier) Notify(ctx context.Context, event string, s *paperless_model.DocumentSuggestion, e Enrichment) {
 	if !n.Enabled() || s == nil {
 		return
 	}
+	urgency := e.Urgency
+	if !validUrgencies[urgency] {
+		urgency = "low"
+	}
+	actionDesc := e.ActionDescription
+	if !e.ActionRequired {
+		actionDesc = ""
+	}
 	p := Payload{
-		Schema:     schemaVersion,
-		Event:      event,
-		DocumentID: s.DocumentID,
-		Timestamp:  time.Now().UTC(),
+		Schema:            schemaVersion,
+		Event:             event,
+		DocumentID:        s.DocumentID,
+		Summary:           e.Summary,
+		Urgency:           urgency,
+		ActionRequired:    e.ActionRequired,
+		ActionDescription: actionDesc,
+		Timestamp:         time.Now().UTC(),
 	}
 	if s.Title != nil {
 		p.Title = *s.Title
@@ -78,6 +110,9 @@ func (n *Notifier) Notify(ctx context.Context, event string, s *paperless_model.
 	}
 	if s.DocumentType != nil {
 		p.DocumentType = *s.DocumentType
+	}
+	if s.Content != nil {
+		p.Content = truncate(*s.Content, config.N8nWebhookContentMaxChars)
 	}
 
 	go n.send(ctx, event, p)
@@ -144,6 +179,19 @@ func (n *Notifier) attempt(ctx context.Context, url string, body []byte) error {
 		return nonRetryable{fmt.Errorf("http %d", resp.StatusCode)}
 	}
 	return fmt.Errorf("http %d", resp.StatusCode)
+}
+
+// truncate returns s cut to at most max runes, with an ellipsis marker when cut.
+// A non-positive max disables truncation.
+func truncate(s string, max int) string {
+	if max <= 0 {
+		return s
+	}
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max]) + "…[truncated]"
 }
 
 type nonRetryable struct{ error }

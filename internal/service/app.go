@@ -169,7 +169,20 @@ func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName s
 		return 0, fmt.Errorf("error updating documents: %w", err)
 	}
 
-	app.Notifier.Notify(ctx, customFieldName, suggestion)
+	enrichment := webhook.Enrichment{}
+	if suggestion.Summary != nil {
+		enrichment.Summary = *suggestion.Summary
+	}
+	if suggestion.Urgency != nil {
+		enrichment.Urgency = strings.ToLower(strings.TrimSpace(*suggestion.Urgency))
+	}
+	if suggestion.ActionRequired != nil {
+		enrichment.ActionRequired = *suggestion.ActionRequired
+	}
+	if suggestion.ActionDescription != nil {
+		enrichment.ActionDescription = *suggestion.ActionDescription
+	}
+	app.Notifier.Notify(ctx, customFieldName, suggestion, enrichment)
 
 	return 1, nil
 }

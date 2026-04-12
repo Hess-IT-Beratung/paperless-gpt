@@ -45,6 +45,11 @@ This lets you either:
   "tags": ["bills", "utilities"],
   "correspondent": "Stadtwerke",
   "document_type": "Invoice",
+  "summary": "Stromrechnung für März 2026 über 87,42 EUR, fällig am 2026-04-30.",
+  "urgency": "medium",
+  "action_required": true,
+  "action_description": "87,42 EUR bis zum 2026-04-30 überweisen.",
+  "content": "Rechnung Nr. 12345 ...\nBetrag: 87,42 EUR ...",
   "timestamp": "2026-04-12T18:42:11Z"
 }
 ```
@@ -56,7 +61,23 @@ Fields:
 - `document_id` — Paperless-NGX document ID.
 - `title`, `tags`, `correspondent`, `document_type` — the final values applied
   to the document. Optional fields are omitted when empty.
+- `summary` — 2-3 sentence LLM-generated summary of the document in the
+  likely document language. Omitted when empty or generation fails (the
+  webhook still fires).
+- `urgency` — `low` | `medium` | `high` | `critical`. LLM-assigned triage
+  score so consumers can style or route notifications. Defaults to `low`
+  if the model returns something unexpected.
+- `action_required` — boolean. `true` when the recipient needs to do
+  something (pay, reply, file). Always present.
+- `action_description` — short imperative sentence describing the action,
+  in the likely document language. Empty when `action_required` is false.
+- `content` — the document's OCR text, truncated to
+  `N8N_WEBHOOK_CONTENT_MAX_CHARS` runes (default 5000). A `…[truncated]`
+  marker is appended when cut. Omitted when empty.
 - `timestamp` — UTC time the notification was emitted.
+
+`summary`, `urgency`, `action_required`, and `action_description` are all
+produced by a single structured-JSON LLM call (one call per document).
 
 ## Delivery semantics
 

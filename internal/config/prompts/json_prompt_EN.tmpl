@@ -22,7 +22,11 @@ Analyze the content and fill in the following JSON fields as precisely as possib
   "document_type": "type of the document",
   "title": "title of the document",
   "created_date": "YYYY-MM-DD",
-  "tags": ["tag1", "tag2"]
+  "tags": ["tag1", "tag2"],
+  "summary": "2-3 sentence summary of the document",
+  "urgency": "low | medium | high | critical",
+  "action_required": true,
+  "action_description": "Short imperative instruction, or empty string"
 }
 ```
 
@@ -120,6 +124,45 @@ Analyze the content and fill in the following JSON fields as precisely as possib
 **Rules:**
 - Format: `"YYYY-MM-DD"` (e.g., `"2024-03-15"`).
 - If no date can be identified: `null`.
+
+---
+
+# Field: summary
+
+**Definition:** A short summary of the document for an email notification.
+
+**Rules:**
+- 2-3 short sentences in {{.Language}}.
+- Cover: what the document is, who sent it, any deadlines or amounts.
+- Plain text only, no Markdown, no preamble.
+
+---
+
+# Field: urgency
+
+**Definition:** Triage level for the recipient. Exactly one of:
+
+- `low` — informational, receipts, confirmations, archive-only mail.
+- `medium` — routine bills or forms with a deadline more than ~2 weeks out.
+- `high` — deadline within ~1 week, important letters, account actions needed.
+- `critical` — legal/tax demands, disconnection notices, court summons, immediate action.
+
+---
+
+# Field: action_required
+
+**Definition:** Boolean. `true` when the recipient must do something (pay, reply, file, meet a deadline). `false` for purely informational documents.
+
+---
+
+# Field: action_description
+
+**Definition:** Short imperative instruction in {{.Language}}.
+
+**Rules:**
+- Single sentence, max ~15 words.
+- When `action_required=false`: empty string `""`.
+- Example: "Pay 87.42 EUR by 2026-04-30."
 
 ---
 

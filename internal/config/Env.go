@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"paperless-gpt/internal/logging"
+	"strconv"
 	"strings"
 )
 
@@ -24,7 +25,8 @@ var (
 	Region = os.Getenv("AWS_REGION")
 	Bucket = os.Getenv("AWS_OCR_BUCKET_NAME")
 
-	N8nWebhookURL = os.Getenv("N8N_WEBHOOK_URL")
+	N8nWebhookURL             = os.Getenv("N8N_WEBHOOK_URL")
+	N8nWebhookContentMaxChars = intEnvVar("N8N_WEBHOOK_CONTENT_MAX_CHARS", 5000)
 
 	PromptPreamble           = os.Getenv("PROMPT_PREAMBLE")
 	TitleExplanation         = os.Getenv("PROMPT_TITLE_EXPLANATION")
@@ -36,6 +38,19 @@ var (
 
 func init() {
 	validateEnvVars()
+}
+
+// intEnvVar reads an env var as int, returning the fallback when unset or invalid.
+func intEnvVar(name string, fallback int) int {
+	v := os.Getenv(name)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }
 
 // splitEnvVar splits an environment variable by commas and returns a slice of strings

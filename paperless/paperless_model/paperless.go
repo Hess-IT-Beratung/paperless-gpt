@@ -63,6 +63,12 @@ type DocumentSuggestion struct {
 	Tags             *[]string `json:"tags"`
 	DocumentType     *string   `json:"document_type,omitempty"`
 	Content          *string   `json:"content,omitempty"`
+	// Webhook enrichment fields — populated by the LLM, consumed only by
+	// downstream notifiers (e.g. n8n). UpdateDocument ignores them.
+	Summary           *string `json:"summary,omitempty"`
+	Urgency           *string `json:"urgency,omitempty"`
+	ActionRequired    *bool   `json:"action_required,omitempty"`
+	ActionDescription *string `json:"action_description,omitempty"`
 }
 
 type Correspondent struct {
