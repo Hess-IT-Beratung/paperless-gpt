@@ -24,6 +24,8 @@ var (
 	Region = os.Getenv("AWS_REGION")
 	Bucket = os.Getenv("AWS_OCR_BUCKET_NAME")
 
+	N8nWebhookURL = os.Getenv("N8N_WEBHOOK_URL")
+
 	PromptPreamble           = os.Getenv("PROMPT_PREAMBLE")
 	TitleExplanation         = os.Getenv("PROMPT_TITLE_EXPLANATION")
 	TagsExplanation          = os.Getenv("PROMPT_TAGS_EXPLANATION")

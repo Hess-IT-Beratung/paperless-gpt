@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"paperless-gpt/internal/logging"
+	"paperless-gpt/internal/webhook"
 	"paperless-gpt/paperless/paperless_model"
 	"paperless-gpt/paperless/paperless_service"
 	"strings"
@@ -39,6 +40,7 @@ type CacheEntry struct {
 type App struct {
 	PaperlessClient *paperless_service.PaperlessClient
 	LlmClient       llms.Model
+	Notifier        *webhook.Notifier
 	cache           map[string]*list.Element
 	cacheList       *list.List
 	cacheMutex      sync.Mutex
@@ -59,6 +61,7 @@ func Start() {
 	app := &App{
 		PaperlessClient: client,
 		LlmClient:       llm,
+		Notifier:        webhook.NewNotifier(),
 		cache:           make(map[string]*list.Element),
 		cacheList:       list.New(),
 		cacheMutex:      sync.Mutex{},
@@ -165,6 +168,8 @@ func (app *App) processAutoTagDocuments(suggestionFunc SuggestionFunc, tagName s
 	if err != nil {
 		return 0, fmt.Errorf("error updating documents: %w", err)
 	}
+
+	app.Notifier.Notify(ctx, customFieldName, suggestion)
 
 	return 1, nil
 }
