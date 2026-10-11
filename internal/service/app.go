@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"paperless-gpt/internal/llmhttp"
 	"paperless-gpt/internal/logging"
 	"paperless-gpt/internal/webhook"
 	"paperless-gpt/paperless/paperless_model"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tmc/langchaingo/httputil"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/llms/ollama"
@@ -205,6 +207,7 @@ func createLLM() (llms.Model, error) {
 		return anthropic.New(
 			anthropic.WithModel(config.LlmModel),
 			anthropic.WithToken(config.AnthropicAPIKey),
+			anthropic.WithHTTPClient(llmhttp.NewSamplingParamsFilter(httputil.DefaultClient)),
 		)
 	case "ollama":
 		host := os.Getenv("OLLAMA_HOST")
