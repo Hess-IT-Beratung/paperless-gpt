@@ -71,7 +71,7 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 			},
 			Role: llms.ChatMessageTypeHuman,
 		},
-	})
+	}, generateOptions()...)
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from LlmClient: %v", err)
 	}
@@ -248,4 +248,13 @@ func (app *App) generateAutoDocumentSuggestion(ctx context.Context, doc paperles
 func sortStrings(names []string) []string {
 	sort.Strings(names)
 	return names
+}
+
+// generateOptions returns the call options for the configured provider. The token cap is
+// Anthropic-only: newer OpenAI models reject max_tokens, and Ollama has its own limits.
+func generateOptions() []llms.CallOption {
+	if strings.ToLower(config.LlmProvider) == "anthropic" {
+		return []llms.CallOption{llms.WithMaxTokens(config.LlmMaxTokens)}
+	}
+	return nil
 }

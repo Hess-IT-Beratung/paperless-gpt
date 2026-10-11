@@ -10,14 +10,18 @@ import (
 var (
 	log = logging.InitLogger(LogLevel)
 
-	PaperlessBaseURL       = os.Getenv("PAPERLESS_BASE_URL")
-	PaperlessAPIToken      = os.Getenv("PAPERLESS_API_TOKEN")
-	OpenaiAPIKey           = os.Getenv("OPENAI_API_KEY")
-	AnthropicAPIKey        = os.Getenv("ANTHROPIC_API_KEY")
-	AutoTag                = os.Getenv("PAPERLESS_AUTO_TAG")
-	OcrTag                 = os.Getenv("PAPERLESS_OCR_TAG")
-	LlmProvider            = os.Getenv("LLM_PROVIDER")
-	LlmModel               = os.Getenv("LLM_MODEL")
+	PaperlessBaseURL  = os.Getenv("PAPERLESS_BASE_URL")
+	PaperlessAPIToken = os.Getenv("PAPERLESS_API_TOKEN")
+	OpenaiAPIKey      = os.Getenv("OPENAI_API_KEY")
+	AnthropicAPIKey   = os.Getenv("ANTHROPIC_API_KEY")
+	AutoTag           = os.Getenv("PAPERLESS_AUTO_TAG")
+	OcrTag            = os.Getenv("PAPERLESS_OCR_TAG")
+	LlmProvider       = os.Getenv("LLM_PROVIDER")
+	LlmModel          = os.Getenv("LLM_MODEL")
+	// LlmMaxTokens caps the answer of Anthropic models, thinking included. Thinking models
+	// can spend more than langchaingo's default of 2048 on thinking alone and then return
+	// a cut-off answer. Only output actually generated is billed, so a high cap is cheap.
+	LlmMaxTokens           = intEnvVar("LLM_MAX_TOKENS", 16000)
 	LogLevel               = strings.ToLower(os.Getenv("LOG_LEVEL"))
 	CorrespondentBlackList = splitEnvVar("CORRESPONDENT_BLACK_LIST")
 	TagBlackList           = splitEnvVar("TAG_BLACK_LIST")
