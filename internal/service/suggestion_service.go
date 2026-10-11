@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"paperless-gpt/internal/config"
+	"paperless-gpt/internal/llmtext"
 	"paperless-gpt/internal/ocr"
 	"paperless-gpt/paperless/paperless_model"
 	paperless_service "paperless-gpt/paperless/paperless_service"
@@ -75,8 +76,14 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 		return nil, fmt.Errorf("error getting response from LlmClient: %v", err)
 	}
 
-	jsonStr := strings.TrimSpace(completion.Choices[0].Content)
+	jsonStr := llmtext.Text(completion)
 	log.Infof("Json suggestion for document %d: %s", originalDocument.ID, jsonStr)
+
+	suggestion, err := unmarshalSuggestion(jsonStr, originalDocument)
+	if err != nil {
+		// Not cached: a cached unusable answer would fail this document on every retry.
+		return nil, err
+	}
 
 	// Store in cache
 	app.cacheMutex.Lock()
@@ -94,7 +101,7 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 	log.Debugf("Added prompt to cache of document %d", originalDocument.ID)
 	app.cacheMutex.Unlock()
 
-	return unmarshalSuggestion(jsonStr, originalDocument)
+	return suggestion, nil
 }
 
 func unmarshalSuggestion(jsonStr string, originalDocument paperless_model.Document) (*paperless_model.DocumentSuggestion, error) {
@@ -104,24 +111,13 @@ func unmarshalSuggestion(jsonStr string, originalDocument paperless_model.Docume
 		return nil, fmt.Errorf("error: json string is empty or blank")
 	}
 
-	// the json string might begin with invalid characters (Markdown). Remove them until the first '{'
-	for i, c := range jsonStr {
-		if c == '{' {
-			jsonStr = jsonStr[i:]
-			break
-		}
-	}
-
-	// the json string might end with invalid characters. Remove them until the last '}'
-	for i := len(jsonStr) - 1; i >= 0; i-- {
-		if jsonStr[i] == '}' {
-			jsonStr = jsonStr[:i+1]
-			break
-		}
+	jsonStr, err := llmtext.LastJSONObject(jsonStr)
+	if err != nil {
+		return nil, fmt.Errorf("error extracting json: %v", err)
 	}
 
 	var suggestion paperless_model.DocumentSuggestion
-	err := json.Unmarshal([]byte(jsonStr), &suggestion)
+	err = json.Unmarshal([]byte(jsonStr), &suggestion)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling json: %v", err)
 	}
