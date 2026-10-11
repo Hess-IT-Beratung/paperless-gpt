@@ -268,9 +268,10 @@ func (paperlessClient *PaperlessClient) UpdateDocument(ctx context.Context, sugg
 		}
 	}
 
-	// Created Date
+	// Created Date: paperless-ngx takes the date as "created"; the "created_date"
+	// alias is deprecated and logs a warning on every update.
 	if suggestion.Date != nil && len(*suggestion.Date) == len("2006-01-02") {
-		updatedFields["created_date"] = suggestion.Date
+		updatedFields["created"] = suggestion.Date
 	}
 
 	// Suggested Title
