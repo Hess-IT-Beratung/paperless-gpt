@@ -8,6 +8,7 @@ import (
 	"paperless-gpt/internal/config"
 	"paperless-gpt/internal/llmtext"
 	"paperless-gpt/internal/ocr"
+	"paperless-gpt/internal/prompt"
 	"paperless-gpt/paperless/paperless_model"
 	paperless_service "paperless-gpt/paperless/paperless_service"
 	"sort"
@@ -64,17 +65,14 @@ func (app *App) getSuggestedJson(ctx context.Context, content string, availableT
 	// Generate content
 	completion, err := app.LlmClient.GenerateContent(ctx, []llms.MessageContent{
 		{
-			Parts: []llms.ContentPart{
-				llms.TextContent{
-					Text: prompt,
-				},
-			},
-			Role: llms.ChatMessageTypeHuman,
+			Parts: promptParts(prompt, content),
+			Role:  llms.ChatMessageTypeHuman,
 		},
 	}, generateOptions()...)
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from LlmClient: %v", err)
 	}
+	logUsage(originalDocument.ID, completion)
 
 	jsonStr := llmtext.Text(completion)
 	log.Infof("Json suggestion for document %d: %s", originalDocument.ID, jsonStr)
@@ -257,4 +255,26 @@ func generateOptions() []llms.CallOption {
 		return []llms.CallOption{llms.WithMaxTokens(config.LlmMaxTokens)}
 	}
 	return nil
+}
+
+// promptParts sends the prompt as one part, except for Anthropic: there the part in
+// front of the document is marked for prompt caching, so documents processed within a
+// few minutes of each other pay the reduced cache-read price for the shared lists.
+// Other providers do not understand cached parts.
+func promptParts(rendered string, content string) []llms.ContentPart {
+	if strings.ToLower(config.LlmProvider) == "anthropic" {
+		return prompt.CacheableParts(rendered, content)
+	}
+	return []llms.ContentPart{llms.TextContent{Text: rendered}}
+}
+
+// logUsage logs the token usage of a completion, including cache reads and writes when
+// the provider reports them.
+func logUsage(documentID int, completion *llms.ContentResponse) {
+	if completion == nil || len(completion.Choices) == 0 || completion.Choices[0] == nil {
+		return
+	}
+	info := completion.Choices[0].GenerationInfo
+	log.Infof("Token usage for document %d: input=%v cache_read=%v cache_write=%v output=%v",
+		documentID, info["InputTokens"], info["CacheReadInputTokens"], info["CacheCreationInputTokens"], info["OutputTokens"])
 }

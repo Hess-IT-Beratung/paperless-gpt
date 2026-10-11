@@ -2,11 +2,10 @@ package config
 
 import (
 	_ "embed"
-	"html/template"
 	"os"
+	"paperless-gpt/internal/prompt"
 	"path/filepath"
-
-	"github.com/Masterminds/sprig/v3"
+	"text/template"
 )
 
 var (
@@ -45,7 +44,7 @@ func init() {
 			log.Fatalf("Failed to write default json template to disk: %v", err)
 		}
 	}
-	JsonPrompt, err = template.New("json").Funcs(sprig.FuncMap()).Parse(string(jsonTemplateContent))
+	JsonPrompt, err = prompt.Parse("json", string(jsonTemplateContent))
 	if err != nil {
 		log.Fatalf("Failed to parse json template: %v", err)
 	}
